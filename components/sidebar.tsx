@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { BarChart3, Calendar, Instagram, Newspaper, Target, LayoutDashboard } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { BarChart3, Calendar, Instagram, Newspaper, Target, LayoutDashboard, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
+import { createClient } from "@/lib/supabase";
 
 const nav = [
   { href: "/", label: "Inicio", icon: LayoutDashboard },
@@ -17,6 +18,15 @@ const nav = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  };
+
   return (
     <aside className="w-64 shrink-0 border-r bg-card h-screen sticky top-0 flex flex-col">
       <div className="p-5 border-b flex items-center gap-3">
@@ -26,6 +36,7 @@ export function Sidebar() {
           <p className="text-[10px] text-muted-foreground mt-1 leading-tight">No es Magia, Es Finanzas</p>
         </div>
       </div>
+
       <nav className="flex-1 p-3 space-y-1">
         {nav.map(({ href, label, icon: Icon }) => {
           const active = pathname === href;
@@ -46,7 +57,17 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <div className="p-4 border-t text-xs text-muted-foreground">v0.1.0</div>
+
+      <div className="p-3 border-t">
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors w-full"
+        >
+          <LogOut className="h-4 w-4" />
+          Cerrar sesión
+        </button>
+        <p className="text-xs text-muted-foreground text-center mt-2">v0.1.0</p>
+      </div>
     </aside>
   );
 }
