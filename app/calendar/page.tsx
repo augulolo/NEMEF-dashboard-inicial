@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -12,7 +12,9 @@ import {
   SEED_CALENDAR,
   type Platform,
   type CalendarStatus,
+  type CalendarItem,
 } from "@/lib/calendar";
+import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 const TODAY = "2026-04-15";
@@ -27,7 +29,19 @@ const MONTHS_ES = [
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];
 
+function fromDB(row: Record<string, unknown>): CalendarItem {
+  return {
+    id: row.id as string,
+    title: row.title as string,
+    platform: row.platform as Platform,
+    status: row.status as CalendarStatus,
+    date: row.date as string,
+  };
+}
+
 export default function CalendarPage() {
+  const [items, setItems] = useState<CalendarItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [cursor, setCursor] = useState(() => {
     const d = new Date(TODAY + "T00:00:00");
     return { year: d.getFullYear(), month: d.getMonth() };
@@ -36,13 +50,43 @@ export default function CalendarPage() {
   const [statusFilter, setStatusFilter] = useState<CalendarStatus | "all">("all");
   const [selectedDay, setSelectedDay] = useState<string>(TODAY);
 
+  useEffect(() => {
+    supabase
+      .from("calendar_items")
+      .select("*")
+      .order("date", { ascending: true })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error(error);
+          setItems(SEED_CALENDAR);
+        } else if (data && data.length > 0) {
+          setItems(data.map(fromDB));
+        } else {
+          // Primera vez: cargar seeds
+          const seedRows = SEED_CALENDAR.map((i) => ({
+            id: i.id,
+            title: i.title,
+            platform: i.platform,
+            status: i.status,
+            date: i.date,
+          }));
+          supabase
+            .from("calendar_items")
+            .insert(seedRows)
+            .then(() => setItems(SEED_CALENDAR));
+        }
+        setLoading(false);
+      });
+  }, []);
+
   const filtered = useMemo(
     () =>
-      SEED_CALENDAR.filter(
+      items.filter(
         (it) =>
-          activePlatforms.has(it.platform) && (statusFilter === "all" || it.status === statusFilter)
+          activePlatforms.has(it.platform) &&
+          (statusFilter === "all" || it.status === statusFilter)
       ),
-    [activePlatforms, statusFilter]
+    [items, activePlatforms, statusFilter]
   );
 
   const monthLabel = `${MONTHS_ES[cursor.month]} ${cursor.year}`;
@@ -60,8 +104,6 @@ export default function CalendarPage() {
       return next;
     });
   };
-
-  const allPlatforms = () => setActivePlatforms(new Set(PLATFORMS));
 
   const dayItems = filtered.filter((i) => i.date === selectedDay);
 
@@ -110,19 +152,27 @@ export default function CalendarPage() {
       </div>
 
       <div className="mb-6">
-        <PlatformFilter active={activePlatforms} onToggle={togglePlatform} onAll={allPlatforms} />
+        <PlatformFilter
+          active={activePlatforms}
+          onToggle={togglePlatform}
+          onAll={() => setActivePlatforms(new Set(PLATFORMS))}
+        />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <MonthGrid
-          year={cursor.year}
-          month={cursor.month}
-          items={filtered}
-          today={TODAY}
-          onSelectDay={setSelectedDay}
-        />
-        <DayDetail date={selectedDay} items={dayItems} />
-      </div>
+      {loading ? (
+        <div className="text-sm text-muted-foreground">Cargando calendario…</div>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+          <MonthGrid
+            year={cursor.year}
+            month={cursor.month}
+            items={filtered}
+            today={TODAY}
+            onSelectDay={setSelectedDay}
+          />
+          <DayDetail date={selectedDay} items={dayItems} />
+        </div>
+      )}
     </>
   );
 }
