@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { AddCompetitor } from "@/components/competitors/add-competitor";
@@ -15,13 +15,65 @@ import {
   type Competitor,
   type Region,
 } from "@/lib/competitors";
-import { useLocalStorage } from "@/hooks/use-local-storage";
+import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
+// Mapeo snake_case (DB) → camelCase (app)
+function fromDB(row: Record<string, unknown>): Competitor {
+  return {
+    id: row.id as string,
+    handle: row.handle as string,
+    name: row.name as string,
+    platform: row.platform as Competitor["platform"],
+    region: row.region as Competitor["region"],
+    followers: row.followers as number,
+    followersHistory: (row.followers_history as number[]) ?? [],
+    engagementRate: row.engagement_rate as number,
+    postsPerWeek: row.posts_per_week as number,
+    recentPosts: (row.recent_posts as Competitor["recentPosts"]) ?? [],
+  };
+}
+
 export default function CompetitorsPage() {
-  const [competitors, setCompetitors] = useLocalStorage<Competitor[]>("nemef.competitors", SEED_COMPETITORS);
+  const [competitors, setCompetitors] = useState<Competitor[]>([]);
+  const [loading, setLoading] = useState(true);
   const [platformFilter, setPlatformFilter] = useState<Platform | "all">("all");
   const [regionFilter, setRegionFilter] = useState<Region | "all">("all");
+
+  // Carga inicial desde Supabase
+  useEffect(() => {
+    supabase
+      .from("competitors")
+      .select("*")
+      .order("followers", { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error(error);
+          setCompetitors(SEED_COMPETITORS);
+        } else if (data && data.length > 0) {
+          setCompetitors(data.map(fromDB));
+        } else {
+          // Primera vez: cargar seeds
+          const seedRows = SEED_COMPETITORS.map((c) => ({
+            id: c.id,
+            handle: c.handle,
+            name: c.name,
+            platform: c.platform,
+            region: c.region,
+            followers: c.followers,
+            followers_history: c.followersHistory,
+            engagement_rate: c.engagementRate,
+            posts_per_week: c.postsPerWeek,
+            recent_posts: c.recentPosts,
+          }));
+          supabase
+            .from("competitors")
+            .insert(seedRows)
+            .then(() => setCompetitors(SEED_COMPETITORS));
+        }
+        setLoading(false);
+      });
+  }, []);
 
   const filtered = useMemo(
     () =>
@@ -46,8 +98,29 @@ export default function CompetitorsPage() {
     return { total, avgEng, avgFreq, avgGrowth };
   }, [filtered]);
 
-  const handleAdd = (c: Competitor) => setCompetitors((prev) => [c, ...prev]);
-  const handleDelete = (id: string) => setCompetitors((prev) => prev.filter((c) => c.id !== id));
+  const handleAdd = async (c: Competitor) => {
+    const { data, error } = await supabase
+      .from("competitors")
+      .insert({
+        handle: c.handle,
+        name: c.name,
+        platform: c.platform,
+        region: c.region,
+        followers: c.followers,
+        followers_history: c.followersHistory,
+        engagement_rate: c.engagementRate,
+        posts_per_week: c.postsPerWeek,
+        recent_posts: c.recentPosts,
+      })
+      .select()
+      .single();
+    if (!error && data) setCompetitors((prev) => [fromDB(data), ...prev]);
+  };
+
+  const handleDelete = async (id: string) => {
+    await supabase.from("competitors").delete().eq("id", id);
+    setCompetitors((prev) => prev.filter((c) => c.id !== id));
+  };
 
   return (
     <>
@@ -57,12 +130,12 @@ export default function CompetitorsPage() {
       />
 
       <div className="grid gap-4 md:grid-cols-4 mb-6">
-        <StatCard label="Seguidos" value={String(filtered.length)} icon={Users} />
-        <StatCard label="Total seguidores" value={formatCount(totals.total)} icon={BarChart3} />
-        <StatCard label="Engagement prom." value={`${totals.avgEng.toFixed(1)}%`} icon={Zap} />
+        <StatCard label="Seguidos" value={loading ? "—" : String(filtered.length)} icon={Users} />
+        <StatCard label="Total seguidores" value={loading ? "—" : formatCount(totals.total)} icon={BarChart3} />
+        <StatCard label="Engagement prom." value={loading ? "—" : `${totals.avgEng.toFixed(1)}%`} icon={Zap} />
         <StatCard
           label="Crecim. 8 sem prom."
-          value={`${totals.avgGrowth >= 0 ? "+" : ""}${totals.avgGrowth.toFixed(1)}%`}
+          value={loading ? "—" : `${totals.avgGrowth >= 0 ? "+" : ""}${totals.avgGrowth.toFixed(1)}%`}
           icon={TrendingUp}
           accent={totals.avgGrowth >= 0 ? "text-emerald-400" : "text-red-400"}
         />
@@ -75,21 +148,13 @@ export default function CompetitorsPage() {
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground mr-1">Región:</span>
-          <FilterPill active={regionFilter === "all"} onClick={() => setRegionFilter("all")}>
-            Todas
-          </FilterPill>
-          <FilterPill active={regionFilter === "argentina"} onClick={() => setRegionFilter("argentina")}>
-            {REGION_LABELS.argentina}
-          </FilterPill>
-          <FilterPill active={regionFilter === "mundo"} onClick={() => setRegionFilter("mundo")}>
-            {REGION_LABELS.mundo}
-          </FilterPill>
+          <FilterPill active={regionFilter === "all"} onClick={() => setRegionFilter("all")}>Todas</FilterPill>
+          <FilterPill active={regionFilter === "argentina"} onClick={() => setRegionFilter("argentina")}>{REGION_LABELS.argentina}</FilterPill>
+          <FilterPill active={regionFilter === "mundo"} onClick={() => setRegionFilter("mundo")}>{REGION_LABELS.mundo}</FilterPill>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground mr-1">Plataforma:</span>
-          <FilterPill active={platformFilter === "all"} onClick={() => setPlatformFilter("all")}>
-            Todas
-          </FilterPill>
+          <FilterPill active={platformFilter === "all"} onClick={() => setPlatformFilter("all")}>Todas</FilterPill>
           {PLATFORMS.map((p) => (
             <FilterPill key={p} active={platformFilter === p} onClick={() => setPlatformFilter(p)}>
               {PLATFORM_LABELS[p]}
@@ -98,19 +163,19 @@ export default function CompetitorsPage() {
         </div>
       </div>
 
-      <CompetitorTable competitors={filtered} onDelete={handleDelete} />
+      {loading ? (
+        <div className="text-sm text-muted-foreground">Cargando creadores…</div>
+      ) : (
+        <CompetitorTable competitors={filtered} onDelete={handleDelete} />
+      )}
     </>
   );
 }
 
 function StatCard({
-  label,
-  value,
-  icon: Icon,
-  accent,
+  label, value, icon: Icon, accent,
 }: {
-  label: string;
-  value: string;
+  label: string; value: string;
   icon: React.ComponentType<{ className?: string }>;
   accent?: string;
 }) {
@@ -127,23 +192,15 @@ function StatCard({
   );
 }
 
-function FilterPill({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
+function FilterPill({ active, onClick, children }: {
+  active: boolean; onClick: () => void; children: React.ReactNode;
 }) {
   return (
     <button
       onClick={onClick}
       className={cn(
         "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-        active
-          ? "bg-primary text-primary-foreground border-primary"
-          : "border-border text-muted-foreground hover:bg-accent"
+        active ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:bg-accent"
       )}
     >
       {children}
