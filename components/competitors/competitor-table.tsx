@@ -7,7 +7,28 @@ import { Badge } from "@/components/ui/badge";
 import { Sparkline } from "./sparkline";
 import { ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight, Trash2, TrendingUp, TrendingDown } from "lucide-react";
 import { PLATFORM_LABELS, PLATFORM_STYLES } from "@/lib/calendar";
-import { formatCount, growthPct, REGION_LABELS, type Competitor } from "@/lib/competitors";
+import { formatCount, growthPct, getAvatarUrl, REGION_LABELS, type Competitor } from "@/lib/competitors";
+import type { Platform } from "@/lib/calendar";
+
+function CompetitorAvatar({ name, platform, handle }: { name: string; platform: Platform; handle: string }) {
+  const [failed, setFailed] = useState(false);
+  const initials = name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+  if (failed) {
+    return (
+      <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold shrink-0 select-none">
+        {initials}
+      </div>
+    );
+  }
+  return (
+    <img
+      src={getAvatarUrl(platform, handle)}
+      alt={name}
+      className="h-8 w-8 rounded-full object-cover bg-muted shrink-0"
+      onError={() => setFailed(true)}
+    />
+  );
+}
 
 type SortKey = "name" | "platform" | "region" | "followers" | "engagementRate" | "postsPerWeek" | "growth";
 type SortDir = "asc" | "desc";
@@ -125,8 +146,13 @@ export function CompetitorTable({
                       </button>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="font-medium">{c.name}</div>
-                      <div className="text-xs text-muted-foreground">{c.handle}</div>
+                      <div className="flex items-center gap-3">
+                        <CompetitorAvatar name={c.name} platform={c.platform} handle={c.handle} />
+                        <div>
+                          <div className="font-medium">{c.name}</div>
+                          <div className="text-xs text-muted-foreground">{c.handle}</div>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="inline-flex items-center gap-2">

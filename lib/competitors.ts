@@ -328,6 +328,20 @@ export const SEED_COMPETITORS: Competitor[] = [
   },
 ];
 
+/**
+ * Genera la URL de avatar usando unavatar.io (gratis, sin API key).
+ * Soporta instagram, twitter, youtube, tiktok.
+ */
+export function getAvatarUrl(platform: Platform, handle: string): string {
+  const username = handle.replace(/^@/, "");
+  const service =
+    platform === "instagram" ? "instagram" :
+    platform === "twitter"   ? "twitter"   :
+    platform === "youtube"   ? "youtube"   :
+    platform === "tiktok"    ? "tiktok"    : "instagram";
+  return `https://unavatar.io/${service}/${username}`;
+}
+
 export function growthPct(history: number[]): number {
   if (history.length < 2) return 0;
   const first = history[0];
