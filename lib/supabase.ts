@@ -1,12 +1,12 @@
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-// Cliente singleton para uso en componentes cliente
-export const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey);
-
-// Función helper (retrocompatible con componentes que llaman createClient())
+// Usa cookies (compatible con el middleware de Next.js)
 export function createClient() {
-  return supabase;
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 }
+
+// Instancia singleton para componentes cliente
+export const supabase = createClient();
