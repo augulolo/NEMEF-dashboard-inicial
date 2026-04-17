@@ -12,6 +12,7 @@ import { FileText, CheckCircle2, Clock, Lightbulb, TrendingUp, TrendingDown } fr
 import { growthPct, formatCount } from "@/lib/competitors";
 import type { Competitor } from "@/lib/competitors";
 import { Sparkline } from "@/components/competitors/sparkline";
+import { InstagramAccount } from "@/components/analytics/instagram-account";
 
 const STATUS_COLORS: Record<string, string> = {
   published: "bg-emerald-500",
@@ -147,6 +148,12 @@ export default function AnalyticsPage() {
   return (
     <>
       <PageHeader title="Analíticas" description="Métricas de tu contenido y creadores." />
+
+      {/* Métricas reales de Instagram */}
+      <div className="mb-6">
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Tu cuenta</h2>
+        <InstagramAccount />
+      </div>
 
       {/* KPIs */}
       <div className="grid gap-4 md:grid-cols-4 mb-6">
