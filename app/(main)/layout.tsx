@@ -1,10 +1,11 @@
-import { Sidebar } from "@/components/sidebar";
+import { MainLayout } from "@/components/main-layout";
+import { Toaster } from "@/components/ui/toaster";
 
-export default function MainLayout({ children }: { children: React.ReactNode }) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <main className="flex-1 p-8 overflow-auto">{children}</main>
-    </div>
+    <>
+      <MainLayout>{children}</MainLayout>
+      <Toaster />
+    </>
   );
 }

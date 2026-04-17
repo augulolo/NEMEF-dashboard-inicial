@@ -4,8 +4,10 @@ import { Fragment, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Dialog } from "@/components/ui/dialog";
 import { Sparkline } from "./sparkline";
-import { ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight, Trash2, TrendingUp, TrendingDown } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight, Trash2, Pencil, TrendingUp, TrendingDown } from "lucide-react";
 import { PLATFORM_LABELS, PLATFORM_STYLES } from "@/lib/calendar";
 import { formatCount, growthPct, getAvatarUrl, REGION_LABELS, type Competitor } from "@/lib/competitors";
 import type { Platform } from "@/lib/calendar";
@@ -43,16 +45,59 @@ const columns: { key: SortKey; label: string; align?: "right" }[] = [
   { key: "growth", label: "Crecim. (8 sem)", align: "right" },
 ];
 
+function EditCompetitorDialog({
+  competitor,
+  onClose,
+  onSave,
+}: {
+  competitor: Competitor;
+  onClose: () => void;
+  onSave: (updated: Competitor) => void;
+}) {
+  const [name, setName] = useState(competitor.name);
+  const [handle, setHandle] = useState(competitor.handle);
+
+  return (
+    <Dialog open title="Editar creador" onClose={onClose}>
+      <div className="space-y-4">
+        <div className="space-y-1.5">
+          <label className="text-xs text-muted-foreground">Nombre</label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs text-muted-foreground">Handle (usuario)</label>
+          <Input value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="@usuario" />
+        </div>
+        <div className="flex gap-2 pt-1">
+          <Button
+            className="flex-1"
+            onClick={() => onSave({ ...competitor, name, handle })}
+            disabled={!name.trim() || !handle.trim()}
+          >
+            Guardar
+          </Button>
+          <Button variant="outline" className="flex-1" onClick={onClose}>
+            Cancelar
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  );
+}
+
 export function CompetitorTable({
   competitors,
   onDelete,
+  onEdit,
 }: {
   competitors: Competitor[];
   onDelete: (id: string) => void;
+  onEdit: (updated: Competitor) => void;
 }) {
   const [sortKey, setSortKey] = useState<SortKey>("followers");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Competitor | null>(null);
 
   const sorted = useMemo(() => {
     const list = [...competitors];
@@ -87,6 +132,14 @@ export function CompetitorTable({
   };
 
   return (
+    <>
+    {editing && (
+      <EditCompetitorDialog
+        competitor={editing}
+        onClose={() => setEditing(null)}
+        onSave={(updated) => { onEdit(updated); setEditing(null); }}
+      />
+    )}
     <div className="rounded-lg border bg-card overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -180,15 +233,26 @@ export function CompetitorTable({
                       </div>
                     </td>
                     <td className="pr-3">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-red-400"
-                        onClick={() => onDelete(c.id)}
-                        aria-label="Quitar creador"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                          onClick={() => setEditing(c)}
+                          aria-label="Editar creador"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-red-400"
+                          onClick={() => onDelete(c.id)}
+                          aria-label="Quitar creador"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                   {isOpen && (
@@ -234,5 +298,6 @@ export function CompetitorTable({
         </table>
       </div>
     </div>
+    </>
   );
 }

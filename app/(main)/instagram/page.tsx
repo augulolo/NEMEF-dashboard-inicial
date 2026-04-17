@@ -8,6 +8,7 @@ import { PostColumn } from "@/components/instagram/post-column";
 import { Calendar, FileText, CheckCircle2, Inbox } from "lucide-react";
 import { POST_STATUSES, SEED_POSTS, type Post, type PostStatus } from "@/lib/posts";
 import { supabase } from "@/lib/supabase";
+import { toast } from "@/lib/toast";
 
 const stats: { status: PostStatus; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { status: "scheduled", label: "Programados", icon: Calendar },
@@ -81,12 +82,40 @@ export default function InstagramPage() {
       })
       .select()
       .single();
-    if (!error && data) setPosts((prev) => [fromDB(data), ...prev]);
+    if (!error && data) {
+      setPosts((prev) => [fromDB(data), ...prev]);
+      toast("Post creado");
+    } else if (error) {
+      toast("Error al crear el post", "error");
+    }
+  };
+
+  const handleEdit = async (updated: Post) => {
+    const { error } = await supabase
+      .from("posts")
+      .update({
+        caption: updated.caption,
+        type: updated.type,
+        status: updated.status,
+        scheduled_date: updated.scheduledDate ?? null,
+      })
+      .eq("id", updated.id);
+    if (!error) {
+      setPosts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      toast("Post actualizado");
+    } else {
+      toast("Error al guardar cambios", "error");
+    }
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from("posts").delete().eq("id", id);
-    setPosts((prev) => prev.filter((p) => p.id !== id));
+    const { error } = await supabase.from("posts").delete().eq("id", id);
+    if (!error) {
+      setPosts((prev) => prev.filter((p) => p.id !== id));
+      toast("Post eliminado");
+    } else {
+      toast("Error al eliminar el post", "error");
+    }
   };
 
   return (
@@ -123,7 +152,7 @@ export default function InstagramPage() {
       ) : (
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
           {POST_STATUSES.map((status) => (
-            <PostColumn key={status} status={status} posts={grouped[status]} onDelete={handleDelete} />
+            <PostColumn key={status} status={status} posts={grouped[status]} onDelete={handleDelete} onEdit={handleEdit} />
           ))}
         </div>
       )}

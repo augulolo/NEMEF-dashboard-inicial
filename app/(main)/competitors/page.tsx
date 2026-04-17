@@ -17,6 +17,7 @@ import {
 } from "@/lib/competitors";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { toast } from "@/lib/toast";
 
 function exportCSV(competitors: Competitor[]) {
   const headers = ["Nombre", "Handle", "Plataforma", "Región", "Seguidores", "Engagement %", "Posts/semana"];
@@ -143,28 +144,7 @@ export default function CompetitorsPage() {
       });
   };
 
-  const handleSync = async (platform: "instagram" | "youtube" | "twitter") => {
-    setSyncingPlatform(platform);
-    setSyncError(null);
-    setSyncResult(null);
-    const endpoint = `/api/sync-${platform}`;
-    try {
-      const res = await fetch(endpoint, { method: "POST" });
-      const json = await res.json();
-      if (!res.ok) {
-        setSyncError(json.error ?? "Error al sincronizar");
-      } else {
-        setSyncResult({ updated: json.updated, syncedAt: json.syncedAt, platform });
-        reloadFromDB();
-      }
-    } catch {
-      setSyncError("No se pudo conectar con el servidor");
-    } finally {
-      setSyncingPlatform(null);
-    }
-  };
-
-  const handleAdd = async (c: Competitor) => {
+const handleAdd = async (c: Competitor) => {
     const { data, error } = await supabase
       .from("competitors")
       .insert({
@@ -180,12 +160,58 @@ export default function CompetitorsPage() {
       })
       .select()
       .single();
-    if (!error && data) setCompetitors((prev) => [fromDB(data), ...prev]);
+    if (!error && data) {
+      setCompetitors((prev) => [fromDB(data), ...prev]);
+      toast("Creador agregado");
+    } else if (error) {
+      toast("Error al agregar creador", "error");
+    }
+  };
+
+  const handleEdit = async (updated: Competitor) => {
+    const { error } = await supabase
+      .from("competitors")
+      .update({ name: updated.name, handle: updated.handle })
+      .eq("id", updated.id);
+    if (!error) {
+      setCompetitors((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      toast("Creador actualizado");
+    } else {
+      toast("Error al guardar cambios", "error");
+    }
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from("competitors").delete().eq("id", id);
-    setCompetitors((prev) => prev.filter((c) => c.id !== id));
+    const { error } = await supabase.from("competitors").delete().eq("id", id);
+    if (!error) {
+      setCompetitors((prev) => prev.filter((c) => c.id !== id));
+      toast("Creador eliminado");
+    } else {
+      toast("Error al eliminar", "error");
+    }
+  };
+
+  const handleSyncWithToast = async (platform: "instagram" | "youtube" | "twitter") => {
+    setSyncingPlatform(platform);
+    setSyncError(null);
+    setSyncResult(null);
+    try {
+      const res = await fetch(`/api/sync-${platform}`, { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) {
+        setSyncError(json.error ?? "Error al sincronizar");
+        toast(`Error al sincronizar ${platform}`, "error");
+      } else {
+        setSyncResult({ updated: json.updated, syncedAt: json.syncedAt, platform });
+        toast(`${json.updated} perfil${json.updated !== 1 ? "es" : ""} de ${platform} actualizados`);
+        reloadFromDB();
+      }
+    } catch {
+      setSyncError("No se pudo conectar con el servidor");
+      toast("No se pudo conectar con el servidor", "error");
+    } finally {
+      setSyncingPlatform(null);
+    }
   };
 
   return (
@@ -203,7 +229,7 @@ export default function CompetitorsPage() {
               return (
                 <button
                   key={p}
-                  onClick={() => handleSync(p)}
+                  onClick={() => handleSyncWithToast(p)}
                   disabled={syncingPlatform !== null}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
@@ -273,7 +299,7 @@ export default function CompetitorsPage() {
       {loading ? (
         <div className="text-sm text-muted-foreground">Cargando creadores…</div>
       ) : (
-        <CompetitorTable competitors={filtered} onDelete={handleDelete} />
+        <CompetitorTable competitors={filtered} onDelete={handleDelete} onEdit={handleEdit} />
       )}
     </>
   );
