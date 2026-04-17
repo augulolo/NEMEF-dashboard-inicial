@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Sparkles } from "lucide-react";
 import { TOPIC_LABELS, TOPIC_STYLES, type NewsItem } from "@/lib/news";
+import { CaptionDialog } from "./caption-dialog";
 
 function timeAgo(iso: string): string {
   if (!iso) return "";
@@ -20,8 +22,27 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString("es-AR", { month: "short", day: "numeric" });
 }
 
-export function NewsCard({ item }: { item: NewsItem }) {
+export function NewsCard({
+  item,
+  onCreatePost,
+}: {
+  item: NewsItem;
+  onCreatePost?: (caption: string) => void;
+}) {
+  const [showDialog, setShowDialog] = useState(false);
+
   return (
+    <>
+    {showDialog && onCreatePost && (
+      <CaptionDialog
+        item={item}
+        onClose={() => setShowDialog(false)}
+        onUse={(caption) => {
+          onCreatePost(caption);
+          setShowDialog(false);
+        }}
+      />
+    )}
     <Card className="hover:border-primary/50 transition-colors group">
       <CardContent className="p-5 space-y-3">
         <div className="flex items-center justify-between gap-3">
@@ -58,7 +79,19 @@ export function NewsCard({ item }: { item: NewsItem }) {
         {item.summary && (
           <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{item.summary}</p>
         )}
+        {onCreatePost && (
+          <div className="pt-1">
+            <button
+              onClick={() => setShowDialog(true)}
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors font-medium"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Crear post con IA
+            </button>
+          </div>
+        )}
       </CardContent>
     </Card>
+    </>
   );
 }

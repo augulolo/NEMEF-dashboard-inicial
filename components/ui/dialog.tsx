@@ -41,7 +41,7 @@ export function Dialog({
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="p-5 max-h-[70vh] overflow-y-auto">{children}</div>
       </div>
     </div>
   );

@@ -9,6 +9,8 @@ import { NewsCard } from "@/components/news/news-card";
 import { TopicFilter } from "@/components/news/topic-filter";
 import { RefreshCw, Search, Newspaper } from "lucide-react";
 import { type NewsItem, type NewsTopic } from "@/lib/news";
+import { supabase } from "@/lib/supabase";
+import { toast } from "@/lib/toast";
 
 export default function NewsPage() {
   const [items, setItems] = useState<NewsItem[]>([]);
@@ -54,6 +56,20 @@ export default function NewsPage() {
   }, [items, topic, query]);
 
   const sources = useMemo(() => Array.from(new Set(items.map((i) => i.source))).sort(), [items]);
+
+  const handleCreatePost = async (caption: string) => {
+    const { error } = await supabase.from("posts").insert({
+      caption,
+      type: "reel",
+      status: "draft",
+      scheduled_date: null,
+    });
+    if (!error) {
+      toast("Borrador creado en Instagram ✓");
+    } else {
+      toast("Error al crear el borrador", "error");
+    }
+  };
 
   return (
     <>
@@ -126,7 +142,7 @@ export default function NewsPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((it) => (
-            <NewsCard key={it.id} item={it} />
+            <NewsCard key={it.id} item={it} onCreatePost={handleCreatePost} />
           ))}
         </div>
       )}
