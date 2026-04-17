@@ -31,6 +31,10 @@ Escribí 3 variantes de caption para Instagram sobre esta noticia. Cada variante
 Respondé ÚNICAMENTE con un JSON con este formato exacto, sin texto adicional:
 {"captions": ["caption 1 completo", "caption 2 completo", "caption 3 completo"]}`;
 
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return NextResponse.json({ error: "Falta configurar ANTHROPIC_API_KEY en el servidor" }, { status: 500 });
+  }
+
   try {
     const message = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
