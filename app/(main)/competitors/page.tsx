@@ -37,8 +37,8 @@ function fromDB(row: Record<string, unknown>): Competitor {
 export default function CompetitorsPage() {
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ updated: number; syncedAt: string } | null>(null);
+  const [syncingPlatform, setSyncingPlatform] = useState<string | null>(null);
+  const [syncResult, setSyncResult] = useState<{ updated: number; syncedAt: string; platform: string } | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [platformFilter, setPlatformFilter] = useState<Platform | "all">("all");
   const [regionFilter, setRegionFilter] = useState<Region | "all">("all");
@@ -111,22 +111,24 @@ export default function CompetitorsPage() {
       });
   };
 
-  const handleSync = async () => {
-    setSyncing(true);
+  const handleSync = async (platform: "instagram" | "youtube" | "twitter") => {
+    setSyncingPlatform(platform);
     setSyncError(null);
+    setSyncResult(null);
+    const endpoint = `/api/sync-${platform}`;
     try {
-      const res = await fetch("/api/sync-instagram", { method: "POST" });
+      const res = await fetch(endpoint, { method: "POST" });
       const json = await res.json();
       if (!res.ok) {
         setSyncError(json.error ?? "Error al sincronizar");
       } else {
-        setSyncResult({ updated: json.updated, syncedAt: json.syncedAt });
+        setSyncResult({ updated: json.updated, syncedAt: json.syncedAt, platform });
         reloadFromDB();
       }
     } catch {
       setSyncError("No se pudo conectar con el servidor");
     } finally {
-      setSyncing(false);
+      setSyncingPlatform(null);
     }
   };
 
@@ -161,29 +163,37 @@ export default function CompetitorsPage() {
           title="Creadores de finanzas"
           description="Seguí referentes de finanzas de Argentina y del mundo con métricas de engagement y crecimiento."
         />
-        <div className="flex flex-col items-end gap-1 shrink-0">
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-colors",
-              syncing
-                ? "border-border text-muted-foreground cursor-not-allowed"
-                : "border-primary text-primary hover:bg-primary/10"
-            )}
-          >
-            <RefreshCw className={cn("h-4 w-4", syncing && "animate-spin")} />
-            {syncing ? "Sincronizando…" : "Sincronizar Instagram"}
-          </button>
-          {syncResult && !syncing && (
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          <div className="flex items-center gap-2">
+            {(["instagram", "youtube", "twitter"] as const).map((p) => {
+              const isSyncing = syncingPlatform === p;
+              const labels: Record<string, string> = { instagram: "Instagram", youtube: "YouTube", twitter: "Twitter / X" };
+              return (
+                <button
+                  key={p}
+                  onClick={() => handleSync(p)}
+                  disabled={syncingPlatform !== null}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
+                    syncingPlatform !== null
+                      ? "border-border text-muted-foreground cursor-not-allowed opacity-60"
+                      : "border-primary text-primary hover:bg-primary/10"
+                  )}
+                >
+                  <RefreshCw className={cn("h-3 w-3", isSyncing && "animate-spin")} />
+                  {isSyncing ? "Sincronizando…" : labels[p]}
+                </button>
+              );
+            })}
+          </div>
+          {syncResult && !syncingPlatform && (
             <p className="text-xs text-muted-foreground">
-              ✓ {syncResult.updated} perfil{syncResult.updated !== 1 ? "es" : ""} actualizados ·{" "}
+              ✓ {syncResult.updated} perfil{syncResult.updated !== 1 ? "es" : ""} de{" "}
+              {syncResult.platform} actualizados ·{" "}
               {new Date(syncResult.syncedAt).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
             </p>
           )}
-          {syncError && (
-            <p className="text-xs text-red-400">{syncError}</p>
-          )}
+          {syncError && <p className="text-xs text-red-400">{syncError}</p>}
         </div>
       </div>
 
