@@ -1,8 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
 export async function POST(req: Request) {
   const { title, summary, topics } = await req.json();
 
@@ -35,6 +33,8 @@ Respondé ÚNICAMENTE con un JSON con este formato exacto, sin texto adicional:
     return NextResponse.json({ error: "Falta configurar ANTHROPIC_API_KEY en el servidor" }, { status: 500 });
   }
 
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
   try {
     const message = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
@@ -51,7 +51,8 @@ Respondé ÚNICAMENTE con un JSON con este formato exacto, sin texto adicional:
     const parsed = JSON.parse(jsonMatch[0]);
     return NextResponse.json({ captions: parsed.captions });
   } catch (err) {
-    console.error("[generate-caption]", err);
-    return NextResponse.json({ error: "Error al generar captions" }, { status: 500 });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[generate-caption]", msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
