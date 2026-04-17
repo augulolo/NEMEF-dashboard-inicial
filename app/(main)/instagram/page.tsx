@@ -48,7 +48,6 @@ export default function InstagramPage() {
         } else {
           // Primera vez: cargar seeds en la DB
           const seedRows = SEED_POSTS.map((p) => ({
-            id: p.id,
             caption: p.caption,
             type: p.type,
             status: p.status,

@@ -83,7 +83,6 @@ export default function CompetitorsPage() {
         const missing = SEED_COMPETITORS.filter((c) => !existingHandles.has(c.handle));
         if (missing.length > 0) {
           const rows = missing.map((c) => ({
-            id: c.id,
             handle: c.handle,
             name: c.name,
             platform: c.platform,

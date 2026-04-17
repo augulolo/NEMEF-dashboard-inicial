@@ -17,7 +17,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
-const TODAY = "2026-04-15";
+const TODAY = new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }); // yyyy-mm-dd en timezone AR
 const STATUSES: { key: CalendarStatus | "all"; label: string }[] = [
   { key: "all", label: "Todos" },
   { key: "scheduled", label: "Programados" },
@@ -64,7 +64,6 @@ export default function CalendarPage() {
         } else {
           // Primera vez: cargar seeds
           const seedRows = SEED_CALENDAR.map((i) => ({
-            id: i.id,
             title: i.title,
             platform: i.platform,
             status: i.status,
