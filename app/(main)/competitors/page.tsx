@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { AddCompetitor } from "@/components/competitors/add-competitor";
 import { CompetitorTable } from "@/components/competitors/competitor-table";
-import { Users, TrendingUp, Zap, BarChart3, RefreshCw } from "lucide-react";
+import { Users, TrendingUp, Zap, BarChart3, RefreshCw, Download } from "lucide-react";
 import { PLATFORMS, PLATFORM_LABELS, type Platform } from "@/lib/calendar";
 import {
   SEED_COMPETITORS,
@@ -17,6 +17,24 @@ import {
 } from "@/lib/competitors";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+
+function exportCSV(competitors: Competitor[]) {
+  const headers = ["Nombre", "Handle", "Plataforma", "Región", "Seguidores", "Engagement %", "Posts/semana"];
+  const rows = competitors.map((c) => [
+    c.name, c.handle, PLATFORM_LABELS[c.platform], REGION_LABELS[c.region],
+    c.followers, c.engagementRate.toFixed(1), c.postsPerWeek.toFixed(1),
+  ]);
+  const csv = [headers, ...rows]
+    .map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `creadores-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 // Mapeo snake_case (DB) → camelCase (app)
 function fromDB(row: Record<string, unknown>): Competitor {
@@ -53,11 +71,18 @@ export default function CompetitorsPage() {
         if (error) {
           console.error(error);
           setCompetitors(SEED_COMPETITORS);
-        } else if (data && data.length > 0) {
-          setCompetitors(data.map(fromDB));
-        } else {
-          // Primera vez: cargar seeds
-          const seedRows = SEED_COMPETITORS.map((c) => ({
+          setLoading(false);
+          return;
+        }
+
+        const existing = data ?? [];
+        setCompetitors(existing.map(fromDB));
+
+        // Insertar seeds que no estén en la DB (primera vez O seeds nuevos)
+        const existingHandles = new Set(existing.map((r) => r.handle as string));
+        const missing = SEED_COMPETITORS.filter((c) => !existingHandles.has(c.handle));
+        if (missing.length > 0) {
+          const rows = missing.map((c) => ({
             id: c.id,
             handle: c.handle,
             name: c.name,
@@ -71,8 +96,16 @@ export default function CompetitorsPage() {
           }));
           supabase
             .from("competitors")
-            .insert(seedRows)
-            .then(() => setCompetitors(SEED_COMPETITORS));
+            .insert(rows)
+            .select()
+            .then(({ data: newRows }) => {
+              if (newRows?.length) {
+                setCompetitors((prev) => [
+                  ...prev,
+                  ...newRows.map(fromDB),
+                ].sort((a, b) => b.followers - a.followers));
+              }
+            });
         }
         setLoading(false);
       });
@@ -194,6 +227,13 @@ export default function CompetitorsPage() {
             </p>
           )}
           {syncError && <p className="text-xs text-red-400">{syncError}</p>}
+          <button
+            onClick={() => exportCSV(filtered)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent transition-colors"
+          >
+            <Download className="h-3 w-3" />
+            Exportar CSV
+          </button>
         </div>
       </div>
 

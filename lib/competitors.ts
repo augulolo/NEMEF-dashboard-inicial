@@ -205,6 +205,107 @@ export const SEED_COMPETITORS: Competitor[] = [
     ],
   },
 
+  // ——— Argentina (nuevos) ———
+  {
+    id: "ar11", handle: "@laralopezc", name: "Lara López Calvo",
+    platform: "instagram", region: "argentina",
+    followers: 92000, followersHistory: hist(80000, 92000), engagementRate: 6.8, postsPerWeek: 7,
+    recentPosts: [
+      rp("ll1", "Cómo calcular cuánto necesitás ahorrar para retirarte.", 2, 7200, 310),
+      rp("ll2", "FCI de liquidez vs plazo fijo: diferencias clave.", 5, 6100, 240),
+    ],
+  },
+  {
+    id: "ar12", handle: "@zicarelli", name: "Leandro Zicarelli",
+    platform: "instagram", region: "argentina",
+    followers: 78000, followersHistory: hist(68000, 78000), engagementRate: 5.4, postsPerWeek: 6,
+    recentPosts: [
+      rp("lz1", "Por qué el dólar MEP sigue siendo la mejor opción para dolarizarte.", 1, 5800, 210),
+      rp("lz2", "Carrusel: paso a paso para abrir cuenta en un broker.", 4, 4900, 185),
+    ],
+  },
+  {
+    id: "ar13", handle: "@freenance", name: "Freenance",
+    platform: "instagram", region: "argentina",
+    followers: 145000, followersHistory: hist(120000, 145000), engagementRate: 5.1, postsPerWeek: 9,
+    recentPosts: [
+      rp("fr1", "Factura electrónica, monotributo y exportación: todo lo que necesitás saber.", 2, 9800, 420),
+      rp("fr2", "Cómo cobrar en dólares siendo freelance argentino.", 4, 11200, 510),
+    ],
+  },
+  {
+    id: "ar14", handle: "@beltranbriones", name: "Beltrán Briones",
+    platform: "instagram", region: "argentina",
+    followers: 58000, followersHistory: hist(48000, 58000), engagementRate: 7.2, postsPerWeek: 5,
+    recentPosts: [
+      rp("bb1", "Acciones argentinas vs CEDEARs: mi análisis para el segundo trimestre.", 3, 5400, 290),
+      rp("bb2", "Por qué compré más AL30 esta semana.", 6, 4200, 210),
+    ],
+  },
+  {
+    id: "ar15", handle: "@lafabricapodcast", name: "La Fábrica Podcast",
+    platform: "youtube", region: "argentina",
+    followers: 88000, followersHistory: hist(72000, 88000), engagementRate: 4.3, postsPerWeek: 3,
+    recentPosts: [
+      rp("lf1", "EP 142: cómo invierten los argentinos en 2026.", 3, 22000, 980),
+      rp("lf2", "EP 141: inflación, cepo y el nuevo mapa económico.", 10, 19500, 840),
+    ],
+  },
+  {
+    id: "ar16", handle: "@arielsbdar", name: "Ariel Sbdar",
+    platform: "instagram", region: "argentina",
+    followers: 110000, followersHistory: hist(95000, 110000), engagementRate: 4.9, postsPerWeek: 5,
+    recentPosts: [
+      rp("as1", "La tasa de interés real más alta de los últimos 10 años: lo que significa para tu cartera.", 2, 8200, 350),
+      rp("as2", "Cocos Capital: por qué apostamos a la educación financiera.", 5, 7100, 290),
+    ],
+  },
+  {
+    id: "ar17", handle: "@inverarg", name: "InverARG",
+    platform: "instagram", region: "argentina",
+    followers: 63000, followersHistory: hist(54000, 63000), engagementRate: 5.6, postsPerWeek: 6,
+    recentPosts: [
+      rp("ia1", "Cartera modelo para un inversor moderado en abril 2026.", 1, 6800, 320),
+      rp("ia2", "Qué pasó con el Merval esta semana.", 4, 5200, 240),
+    ],
+  },
+  {
+    id: "ar18", handle: "@criptonorber", name: "CriptoNorber",
+    platform: "tiktok", region: "argentina",
+    followers: 235000, followersHistory: hist(200000, 235000), engagementRate: 8.4, postsPerWeek: 14,
+    recentPosts: [
+      rp("cn1", "¿Bitcoin a 120k o corrección a 70k? Mi análisis.", 1, 42000, 1800),
+      rp("cn2", "Cómo compré mis primeros 0.01 BTC desde Argentina.", 3, 38000, 1500),
+    ],
+  },
+  {
+    id: "ar19", handle: "@joveninversor", name: "Joven Inversor",
+    platform: "instagram", region: "argentina",
+    followers: 71000, followersHistory: hist(60000, 71000), engagementRate: 6.3, postsPerWeek: 7,
+    recentPosts: [
+      rp("ji1", "Empezá a invertir con $10.000 pesos: la guía que nadie te dio.", 2, 9200, 480),
+      rp("ji2", "¿Vale la pena el S&P 500 desde Argentina? Sí, y te explico cómo.", 5, 7800, 360),
+    ],
+  },
+  {
+    id: "ar20", handle: "@cocosinvest", name: "Cocos Capital",
+    platform: "instagram", region: "argentina",
+    followers: 195000, followersHistory: hist(168000, 195000), engagementRate: 4.1, postsPerWeek: 8,
+    recentPosts: [
+      rp("cc1", "Nuevo fondo: rendimientos y condiciones de suscripción.", 1, 12400, 480),
+      rp("cc2", "Herramienta de simulación de cartera ya disponible en la app.", 3, 10800, 390),
+    ],
+  },
+  {
+    id: "ar21", handle: "@agustinserber", name: "Agustín Serber",
+    platform: "instagram", region: "argentina",
+    followers: 44000, followersHistory: hist(36000, 44000), engagementRate: 7.8, postsPerWeek: 5,
+    recentPosts: [
+      rp("asr1", "Análisis técnico del Merval: niveles clave para mayo.", 2, 4800, 280),
+      rp("asr2", "Por qué el riesgo país no refleja la realidad de las empresas locales.", 6, 3900, 210),
+    ],
+  },
+
   // ——— Mundo ———
   {
     id: "w1",

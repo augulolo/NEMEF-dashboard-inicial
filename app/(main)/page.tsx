@@ -32,8 +32,9 @@ export default async function Home() {
 
   const published = posts.filter((p) => p.status === "published").length;
 
-  const hour     = new Date().getHours();
-  const greeting = hour < 12 ? "Buenos días" : hour < 19 ? "Buenas tardes" : "Buenas noches";
+  // Argentina siempre UTC-3 (sin horario de verano)
+  const baHour   = (new Date().getUTCHours() + 21) % 24;
+  const greeting = baHour < 12 ? "Buenos días" : baHour < 19 ? "Buenas tardes" : "Buenas noches";
 
   return (
     <>
@@ -42,6 +43,7 @@ export default async function Home() {
         <p className="text-muted-foreground mt-2">
           {new Date().toLocaleDateString("es-AR", {
             weekday: "long", day: "numeric", month: "long",
+            timeZone: "America/Argentina/Buenos_Aires",
           })}
         </p>
       </div>

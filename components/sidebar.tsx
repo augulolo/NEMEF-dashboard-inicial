@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, Calendar, Instagram, Newspaper, Target, LayoutDashboard, LogOut } from "lucide-react";
+import { BarChart3, Calendar, Instagram, Newspaper, Target, LayoutDashboard, LogOut, Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
 import { createClient } from "@/lib/supabase";
+import { useTheme } from "@/components/theme-provider";
 
 const nav = [
   { href: "/", label: "Inicio", icon: LayoutDashboard },
@@ -19,6 +20,7 @@ const nav = [
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { theme, toggle } = useTheme();
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -59,6 +61,13 @@ export function Sidebar() {
       </nav>
 
       <div className="p-3 border-t">
+        <button
+          onClick={toggle}
+          className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors w-full"
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {theme === "dark" ? "Modo claro" : "Modo oscuro"}
+        </button>
         <button
           onClick={handleLogout}
           className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors w-full"

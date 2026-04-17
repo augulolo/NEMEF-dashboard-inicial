@@ -3,7 +3,28 @@
 @tailwind utilities;
 
 @layer base {
+  /* ——— Light mode (default) ——— */
   :root {
+    --background: 0 0% 99%;
+    --foreground: 240 10% 8%;
+    --card: 0 0% 97%;
+    --card-foreground: 240 10% 8%;
+    --primary: 263 70% 52%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 4% 92%;
+    --secondary-foreground: 240 10% 8%;
+    --muted: 240 4% 92%;
+    --muted-foreground: 240 5% 48%;
+    --accent: 240 4% 90%;
+    --accent-foreground: 240 10% 8%;
+    --border: 240 4% 86%;
+    --input: 240 4% 92%;
+    --ring: 263 70% 52%;
+    --radius: 0.5rem;
+  }
+
+  /* ——— Dark mode ——— */
+  .dark {
     --background: 240 10% 4%;
     --foreground: 0 0% 98%;
     --card: 240 6% 10%;
@@ -19,8 +40,8 @@
     --border: 240 4% 20%;
     --input: 240 4% 16%;
     --ring: 263 70% 60%;
-    --radius: 0.5rem;
   }
+
   * { @apply border-border; }
   body { @apply bg-background text-foreground; }
 }
