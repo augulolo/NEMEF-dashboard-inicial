@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { NewPostForm } from "@/components/instagram/new-post-form";
 import { PostColumn } from "@/components/instagram/post-column";
-import { Calendar, FileText, CheckCircle2, Inbox } from "lucide-react";
+import { Calendar, FileText, CheckCircle2, Inbox, AlertCircle } from "lucide-react";
 import { POST_STATUSES, SEED_POSTS, type Post, type PostStatus } from "@/lib/posts";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/lib/toast";
@@ -118,6 +118,11 @@ export default function InstagramPage() {
     }
   };
 
+  const TODAY = new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+  const overdue = posts.filter(
+    (p) => p.status === "scheduled" && p.scheduledDate && p.scheduledDate < TODAY
+  );
+
   return (
     <>
       <div className="flex items-start justify-between gap-4 mb-8">
@@ -126,6 +131,25 @@ export default function InstagramPage() {
           description="Planificá, redactá y programá tu contenido financiero."
         />
       </div>
+
+      {!loading && overdue.length > 0 && (
+        <div className="mb-6 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 flex items-start gap-3">
+          <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-amber-300">
+              {overdue.length} post{overdue.length > 1 ? "s" : ""} programado{overdue.length > 1 ? "s" : ""} sin publicar
+            </p>
+            <div className="mt-2 space-y-1">
+              {overdue.map((p) => (
+                <p key={p.id} className="text-xs text-amber-300/80 truncate">
+                  · {new Date(p.scheduledDate! + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
+                  {" — "}{p.caption.slice(0, 60)}{p.caption.length > 60 ? "…" : ""}
+                </p>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-4 mb-6">
         {stats.map(({ status, label, icon: Icon }) => (

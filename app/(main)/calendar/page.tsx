@@ -16,6 +16,17 @@ import {
 } from "@/lib/calendar";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import type { Post } from "@/lib/posts";
+
+function postToCalendarItem(p: Post): CalendarItem {
+  return {
+    id: `post-${p.id}`,
+    title: p.caption.slice(0, 60) + (p.caption.length > 60 ? "…" : ""),
+    platform: "instagram",
+    status: p.status === "published" ? "published" : "scheduled",
+    date: p.scheduledDate!,
+  };
+}
 
 const TODAY = new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }); // yyyy-mm-dd en timezone AR
 const STATUSES: { key: CalendarStatus | "all"; label: string }[] = [
@@ -51,31 +62,44 @@ export default function CalendarPage() {
   const [selectedDay, setSelectedDay] = useState<string>(TODAY);
 
   useEffect(() => {
-    supabase
-      .from("calendar_items")
-      .select("*")
-      .order("date", { ascending: true })
-      .then(({ data, error }) => {
-        if (error) {
-          console.error(error);
-          setItems(SEED_CALENDAR);
-        } else if (data && data.length > 0) {
-          setItems(data.map(fromDB));
-        } else {
-          // Primera vez: cargar seeds
-          const seedRows = SEED_CALENDAR.map((i) => ({
-            title: i.title,
-            platform: i.platform,
-            status: i.status,
-            date: i.date,
-          }));
-          supabase
-            .from("calendar_items")
-            .insert(seedRows)
-            .then(() => setItems(SEED_CALENDAR));
-        }
-        setLoading(false);
-      });
+    Promise.all([
+      supabase.from("calendar_items").select("*").order("date", { ascending: true }),
+      supabase.from("posts").select("*").not("scheduled_date", "is", null),
+    ]).then(([calRes, postsRes]) => {
+      let calItems: CalendarItem[] = [];
+
+      if (calRes.error) {
+        calItems = SEED_CALENDAR;
+      } else if (calRes.data && calRes.data.length > 0) {
+        calItems = calRes.data.map(fromDB);
+      } else {
+        const seedRows = SEED_CALENDAR.map((i) => ({
+          title: i.title, platform: i.platform, status: i.status, date: i.date,
+        }));
+        supabase.from("calendar_items").insert(seedRows).then(() => {});
+        calItems = SEED_CALENDAR;
+      }
+
+      // Fusionar posts de Instagram con fecha programada
+      const postItems: CalendarItem[] = (postsRes.data ?? [])
+        .map((r) => ({
+          id: r.id,
+          caption: r.caption,
+          type: r.type,
+          status: r.status,
+          scheduledDate: r.scheduled_date,
+          createdAt: r.created_at,
+        } as Post))
+        .filter((p) => p.scheduledDate)
+        .map(postToCalendarItem);
+
+      // Evitar duplicados si ya existe un calendar_item con mismo id
+      const existingIds = new Set(calItems.map((i) => i.id));
+      const newPostItems = postItems.filter((p) => !existingIds.has(p.id));
+
+      setItems([...calItems, ...newPostItems]);
+      setLoading(false);
+    });
   }, []);
 
   const filtered = useMemo(
