@@ -8,8 +8,10 @@ import { POST_STATUSES, STATUS_LABELS, POST_TYPES, TYPE_LABELS, type Post } from
 import { PLATFORMS, PLATFORM_LABELS, PLATFORM_STYLES } from "@/lib/calendar";
 import type { CalendarItem } from "@/lib/calendar";
 import { cn } from "@/lib/utils";
-import { FileText, CheckCircle2, Clock, Lightbulb } from "lucide-react";
+import { FileText, CheckCircle2, Clock, Lightbulb, TrendingUp, TrendingDown } from "lucide-react";
+import { growthPct, formatCount } from "@/lib/competitors";
 import type { Competitor } from "@/lib/competitors";
+import { Sparkline } from "@/components/competitors/sparkline";
 
 const STATUS_COLORS: Record<string, string> = {
   published: "bg-emerald-500",
@@ -208,32 +210,75 @@ export default function AnalyticsPage() {
         </Card>
       )}
 
-      {/* Top creadores por engagement */}
-      {competitors.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Top creadores por engagement rate
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {competitors.map((c) => (
-              <div key={c.id}>
-                <div className="flex justify-between text-xs mb-1.5">
-                  <span>{c.name}</span>
-                  <span className="text-muted-foreground tabular-nums">{c.engagementRate.toFixed(1)}%</span>
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Top creadores por engagement */}
+        {competitors.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Top creadores por engagement rate
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {competitors.map((c) => (
+                <div key={c.id}>
+                  <div className="flex justify-between text-xs mb-1.5">
+                    <span>{c.name}</span>
+                    <span className="text-muted-foreground tabular-nums">{c.engagementRate.toFixed(1)}%</span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-500"
+                      style={{ width: `${(c.engagementRate / maxEngagement) * 100}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-primary rounded-full transition-all duration-500"
-                    style={{ width: `${(c.engagementRate / maxEngagement) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Tendencia de seguidores */}
+        {competitors.filter((c) => c.followersHistory.length >= 2).length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Tendencia de seguidores (8 semanas)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {competitors
+                .filter((c) => c.followersHistory.length >= 2)
+                .sort((a, b) => Math.abs(growthPct(b.followersHistory)) - Math.abs(growthPct(a.followersHistory)))
+                .map((c) => {
+                  const growth = growthPct(c.followersHistory);
+                  return (
+                    <div key={c.id} className="flex items-center gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="text-xs truncate">{c.name}</span>
+                          <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                            {formatCount(c.followers)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Sparkline data={c.followersHistory} positive={growth >= 0} className="shrink-0" />
+                          <span className={cn(
+                            "inline-flex items-center gap-0.5 text-xs font-medium tabular-nums",
+                            growth >= 0 ? "text-emerald-400" : "text-red-400"
+                          )}>
+                            {growth >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                            {growth >= 0 ? "+" : ""}{growth.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </>
   );
 }
