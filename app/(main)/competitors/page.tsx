@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { AddCompetitor } from "@/components/competitors/add-competitor";
 import { CompetitorTable } from "@/components/competitors/competitor-table";
-import { Users, TrendingUp, Zap, BarChart3 } from "lucide-react";
+import { Users, TrendingUp, Zap, BarChart3, RefreshCw } from "lucide-react";
 import { PLATFORMS, PLATFORM_LABELS, type Platform } from "@/lib/calendar";
 import {
   SEED_COMPETITORS,
@@ -37,6 +37,9 @@ function fromDB(row: Record<string, unknown>): Competitor {
 export default function CompetitorsPage() {
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ updated: number; syncedAt: string } | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [platformFilter, setPlatformFilter] = useState<Platform | "all">("all");
   const [regionFilter, setRegionFilter] = useState<Region | "all">("all");
 
@@ -98,6 +101,35 @@ export default function CompetitorsPage() {
     return { total, avgEng, avgFreq, avgGrowth };
   }, [filtered]);
 
+  const reloadFromDB = () => {
+    supabase
+      .from("competitors")
+      .select("*")
+      .order("followers", { ascending: false })
+      .then(({ data }) => {
+        if (data?.length) setCompetitors(data.map(fromDB));
+      });
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      const res = await fetch("/api/sync-instagram", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) {
+        setSyncError(json.error ?? "Error al sincronizar");
+      } else {
+        setSyncResult({ updated: json.updated, syncedAt: json.syncedAt });
+        reloadFromDB();
+      }
+    } catch {
+      setSyncError("No se pudo conectar con el servidor");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleAdd = async (c: Competitor) => {
     const { data, error } = await supabase
       .from("competitors")
@@ -124,10 +156,36 @@ export default function CompetitorsPage() {
 
   return (
     <>
-      <PageHeader
-        title="Creadores de finanzas"
-        description="Seguí referentes de finanzas de Argentina y del mundo con métricas de engagement y crecimiento."
-      />
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <PageHeader
+          title="Creadores de finanzas"
+          description="Seguí referentes de finanzas de Argentina y del mundo con métricas de engagement y crecimiento."
+        />
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-colors",
+              syncing
+                ? "border-border text-muted-foreground cursor-not-allowed"
+                : "border-primary text-primary hover:bg-primary/10"
+            )}
+          >
+            <RefreshCw className={cn("h-4 w-4", syncing && "animate-spin")} />
+            {syncing ? "Sincronizando…" : "Sincronizar Instagram"}
+          </button>
+          {syncResult && !syncing && (
+            <p className="text-xs text-muted-foreground">
+              ✓ {syncResult.updated} perfil{syncResult.updated !== 1 ? "es" : ""} actualizados ·{" "}
+              {new Date(syncResult.syncedAt).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+            </p>
+          )}
+          {syncError && (
+            <p className="text-xs text-red-400">{syncError}</p>
+          )}
+        </div>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-4 mb-6">
         <StatCard label="Seguidos" value={loading ? "—" : String(filtered.length)} icon={Users} />
