@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
-import { Plus, X, Sparkles, Hash, RefreshCw, Copy, Check } from "lucide-react";
+import { Plus, X, Sparkles, Hash, RefreshCw, Copy, Check, LayoutTemplate } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   POST_TYPES, POST_STATUSES, TYPE_LABELS, STATUS_LABELS,
   type Post, type PostStatus, type PostType,
 } from "@/lib/posts";
+import { TemplateSelector } from "./template-selector";
+import type { PostTemplate } from "@/lib/post-templates";
 
 export function NewPostForm({ onCreate }: { onCreate: (post: Post) => void }) {
   const [open, setOpen] = useState(false);
@@ -19,6 +21,13 @@ export function NewPostForm({ onCreate }: { onCreate: (post: Post) => void }) {
   const [type, setType] = useState<PostType>("photo");
   const [status, setStatus] = useState<PostStatus>("draft");
   const [scheduledDate, setScheduledDate] = useState("");
+
+  const [showTemplates, setShowTemplates] = useState(false);
+
+  const applyTemplate = (t: PostTemplate) => {
+    setCaption(t.caption);
+    setType(t.type);
+  };
 
   // Hashtags
   const [hashtags, setHashtags] = useState<string[]>([]);
@@ -83,12 +92,25 @@ export function NewPostForm({ onCreate }: { onCreate: (post: Post) => void }) {
   }
 
   return (
+    <>
+    {showTemplates && (
+      <TemplateSelector onSelect={applyTemplate} onClose={() => setShowTemplates(false)} />
+    )}
     <Card className="border-primary/40">
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-4">
         <CardTitle className="text-base">Nueva idea de post</CardTitle>
-        <Button variant="ghost" size="icon" onClick={() => { reset(); setOpen(false); }} aria-label="Cerrar">
-          <X className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button" variant="ghost" size="sm"
+            className="h-8 text-xs text-muted-foreground hover:text-foreground gap-1.5"
+            onClick={() => setShowTemplates(true)}
+          >
+            <LayoutTemplate className="h-3.5 w-3.5" /> Plantillas
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => { reset(); setOpen(false); }} aria-label="Cerrar">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <form onSubmit={submit} className="space-y-4">
@@ -209,5 +231,6 @@ export function NewPostForm({ onCreate }: { onCreate: (post: Post) => void }) {
         </form>
       </CardContent>
     </Card>
+    </>
   );
 }

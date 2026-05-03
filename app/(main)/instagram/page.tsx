@@ -5,7 +5,8 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { NewPostForm } from "@/components/instagram/new-post-form";
 import { PostColumn } from "@/components/instagram/post-column";
-import { Calendar, FileText, CheckCircle2, Inbox, AlertCircle, Search, X } from "lucide-react";
+import { PostList } from "@/components/instagram/post-list";
+import { Calendar, FileText, CheckCircle2, Inbox, AlertCircle, Search, X, LayoutGrid, List } from "lucide-react";
 import { POST_STATUSES, POST_TYPES, TYPE_LABELS, SEED_POSTS, type Post, type PostStatus, type PostType } from "@/lib/posts";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/lib/toast";
@@ -35,6 +36,7 @@ export default function InstagramPage() {
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<PostType | "all">("all");
   const [search, setSearch] = useState("");
+  const [view, setView] = useState<"kanban" | "list">("kanban");
 
   // Carga inicial desde Supabase
   useEffect(() => {
@@ -195,7 +197,8 @@ export default function InstagramPage() {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs text-muted-foreground">Formato:</span>
         <button
           onClick={() => setTypeFilter("all")}
@@ -221,6 +224,25 @@ export default function InstagramPage() {
             </button>
           );
         })}
+        </div>
+
+        {/* Toggle vista */}
+        <div className="flex items-center gap-1 rounded-md border p-1 shrink-0">
+          <button
+            onClick={() => setView("kanban")}
+            className={cn("p-1.5 rounded transition-colors", view === "kanban" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+            title="Vista Kanban"
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => setView("list")}
+            className={cn("p-1.5 rounded transition-colors", view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+            title="Vista Lista"
+          >
+            <List className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
 
       <div className="mb-6">
@@ -229,12 +251,14 @@ export default function InstagramPage() {
 
       {loading ? (
         <div className="text-sm text-muted-foreground">Cargando posts…</div>
-      ) : (
+      ) : view === "kanban" ? (
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
           {POST_STATUSES.map((status) => (
             <PostColumn key={status} status={status} posts={grouped[status]} onDelete={handleDelete} onEdit={handleEdit} />
           ))}
         </div>
+      ) : (
+        <PostList posts={filteredPosts} onDelete={handleDelete} onEdit={handleEdit} />
       )}
     </>
   );
