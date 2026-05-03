@@ -128,30 +128,61 @@ export async function POST(req: Request) {
     }
 
     if (platform === "twitter") {
-      const res = await fetch(
-        `${APIFY_BASE}/quacker~twitter-user-scraper/run-sync-get-dataset-items?token=${token}&timeout=45`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ usernames: [username] }),
-        }
-      );
-      if (!res.ok) return NextResponse.json({ error: `Apify error ${res.status}` }, { status: 502 });
+      // Intentar con apidojo~twitter-user-scraper (más estable que quacker)
+      let profiles: ApifyTWProfile[] = [];
+      let actorError = "";
 
-      const profiles: ApifyTWProfile[] = await res.json();
-      const profile = profiles.find((p) => p.userName?.toLowerCase() === username.toLowerCase());
-      const followers = profile?.followers ?? profile?.followersCount ?? 0;
-      if (!followers) return NextResponse.json({ error: `No se encontró @${username} en Twitter` }, { status: 404 });
+      const actors = [
+        { id: "apidojo~tweet-scraper", body: { twitterHandles: [username], maxItems: 1 } },
+        { id: "quacker~twitter-user-scraper", body: { usernames: [username] } },
+      ];
 
-      const profilePicUrl = profile?.profilePicture ?? profile?.profileImageUrl ?? "";
-      const bio = profile?.description ?? "";
+      for (const actor of actors) {
+        try {
+          const res = await fetch(
+            `${APIFY_BASE}/${actor.id}/run-sync-get-dataset-items?token=${token}&timeout=50`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(actor.body),
+            }
+          );
+          if (!res.ok) { actorError = `Apify error ${res.status}`; continue; }
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) { profiles = data; break; }
+        } catch { continue; }
+      }
+
+      if (!profiles.length) {
+        return NextResponse.json({ error: actorError || `No se pudo obtener datos de @${username} en Twitter/X. El scraping de X es muy restrictivo.` }, { status: 404 });
+      }
+
+      // apidojo devuelve { author: { followers, profilePicture } } en cada tweet
+      // quacker devuelve { userName, followers, profilePicture } directamente
+      const raw = profiles[0] as Record<string, unknown>;
+      const authorData = (raw.author as Record<string, unknown>) ?? raw;
+
+      const followers = (authorData.followers as number)
+        ?? (authorData.followersCount as number)
+        ?? (raw.followers as number)
+        ?? (raw.followersCount as number)
+        ?? 0;
+
+      if (!followers) return NextResponse.json({ error: `No se encontró @${username} en Twitter/X` }, { status: 404 });
+
+      const profilePicUrl = (authorData.profilePicture as string)
+        ?? (authorData.profileImageUrl as string)
+        ?? (raw.profilePicture as string)
+        ?? (raw.profileImageUrl as string)
+        ?? "";
+      const bio = (authorData.description as string) ?? (raw.description as string) ?? "";
 
       const newHistory = [...currentHistory, followers].slice(-12);
       const { error } = await supabase.from("competitors").update({
         followers,
         followers_history: newHistory,
         profile_pic_url: profilePicUrl,
-        bio: bio,
+        bio,
       }).eq("id", id);
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -159,30 +190,42 @@ export async function POST(req: Request) {
     }
 
     if (platform === "youtube") {
-      const channelUrl = `https://www.youtube.com/@${username}`;
+      // Usar /videos para que el scraper encuentre los videos y extraiga datos del canal
+      const channelUrl = `https://www.youtube.com/@${username}/videos`;
       const res = await fetch(
-        `${APIFY_BASE}/apify~youtube-scraper/run-sync-get-dataset-items?token=${token}&timeout=45`,
+        `${APIFY_BASE}/apify~youtube-scraper/run-sync-get-dataset-items?token=${token}&timeout=55`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ startUrls: [{ url: channelUrl }], maxResults: 3 }),
+          body: JSON.stringify({
+            startUrls: [{ url: channelUrl }],
+            maxResults: 8,
+          }),
         }
       );
-      if (!res.ok) return NextResponse.json({ error: `Apify error ${res.status}` }, { status: 502 });
+      if (!res.ok) return NextResponse.json({ error: `Apify error ${res.status}: YouTube scraper falló` }, { status: 502 });
 
       const items: ApifyYTItem[] = await res.json();
-      const subscriberCount = items[0]?.channelSubscriberCount ?? 0;
-      if (!subscriberCount) return NextResponse.json({ error: `No se encontró @${username} en YouTube` }, { status: 404 });
 
-      const profilePicUrl = items[0]?.channelThumbnail ?? "";
-      const bio = items[0]?.channelDescription ?? "";
+      // Buscar el primer item con subscriberCount
+      const itemWithSubs = items.find((i) => i.channelSubscriberCount && i.channelSubscriberCount > 0);
+      const subscriberCount = itemWithSubs?.channelSubscriberCount ?? 0;
+
+      if (!subscriberCount) {
+        return NextResponse.json({
+          error: `No se encontró datos de suscriptores para @${username}. Verificá que el handle de YouTube sea correcto.`
+        }, { status: 404 });
+      }
+
+      const profilePicUrl = itemWithSubs?.channelThumbnail ?? "";
+      const bio = itemWithSubs?.channelDescription ?? "";
 
       const newHistory = [...currentHistory, subscriberCount].slice(-12);
       const { error } = await supabase.from("competitors").update({
         followers: subscriberCount,
         followers_history: newHistory,
         profile_pic_url: profilePicUrl,
-        bio: bio,
+        bio,
       }).eq("id", id);
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });

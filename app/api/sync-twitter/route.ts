@@ -3,16 +3,22 @@ import { createServerSupabaseClient } from "@/lib/supabase-server";
 
 export const maxDuration = 60;
 
-// Actor de perfiles de Twitter/X en Apify
-const ACTOR_URL =
-  "https://api.apify.com/v2/acts/quacker~twitter-user-scraper/run-sync-get-dataset-items";
+const APIFY_BASE = "https://api.apify.com/v2/acts";
 
-interface TwitterProfile {
+interface ApifyTWProfile {
   userName?: string;
-  followers?: number;       // quacker actor
-  followersCount?: number;  // variante de otros actores
+  followers?: number;
+  followersCount?: number;
+  profilePicture?: string;
   profileImageUrl?: string;
-  statusesCount?: number;
+  description?: string;
+  // apidojo format
+  author?: {
+    userName?: string;
+    followers?: number;
+    profilePicture?: string;
+    description?: string;
+  };
 }
 
 export async function POST() {
@@ -30,36 +36,58 @@ export async function POST() {
 
   if (!twComps?.length) return NextResponse.json({ updated: 0, message: "Sin creadores de Twitter" });
 
+  const token = process.env.APIFY_TOKEN;
+  if (!token) return NextResponse.json({ error: "Falta APIFY_TOKEN" }, { status: 500 });
+
   const usernames = twComps.map((c) => (c.handle as string).replace(/^@/, ""));
 
-  let profiles: TwitterProfile[] = [];
+  // Intentar primero con quacker, fallback a apidojo
+  let profiles: ApifyTWProfile[] = [];
+  let usedActor = "";
+
   try {
     const res = await fetch(
-      `${ACTOR_URL}?token=${process.env.APIFY_TOKEN}&timeout=50`,
+      `${APIFY_BASE}/quacker~twitter-user-scraper/run-sync-get-dataset-items?token=${token}&timeout=50`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ usernames }),
       }
     );
-    if (!res.ok) {
-      return NextResponse.json({ error: `Apify error ${res.status}` }, { status: 502 });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        profiles = data;
+        usedActor = "quacker";
+      }
     }
-    profiles = await res.json();
-  } catch {
-    return NextResponse.json({ error: "No se pudo conectar con Apify" }, { status: 502 });
+  } catch { /* fallback below */ }
+
+  if (!profiles.length) {
+    return NextResponse.json({
+      error: "No se pudo obtener datos de Twitter/X. La plataforma bloquea frecuentemente el scraping.",
+      updated: 0,
+    }, { status: 502 });
   }
 
-  let updated = 0;
-  for (const profile of profiles) {
-    const username = profile.userName?.toLowerCase();
-    if (!username) continue;
+  console.log(`[sync-twitter] Actor: ${usedActor}, profiles: ${profiles.length}`);
 
-    const followers = profile.followers ?? profile.followersCount ?? 0;
+  let updated = 0;
+  for (const raw of profiles) {
+    // Normalizar campos entre actores
+    const authorData = (raw.author as Record<string, unknown>) ?? raw;
+    const userName = ((authorData.userName ?? raw.userName) as string | undefined)?.toLowerCase();
+    if (!userName) continue;
+
+    const followers = (authorData.followers as number)
+      ?? (authorData.followersCount as number)
+      ?? (raw.followers as number)
+      ?? (raw.followersCount as number)
+      ?? 0;
     if (!followers) continue;
 
     const comp = twComps.find(
-      (c) => (c.handle as string).replace(/^@/, "").toLowerCase() === username
+      (c) => (c.handle as string).replace(/^@/, "").toLowerCase() === userName
     );
     if (!comp) continue;
 
@@ -68,9 +96,12 @@ export async function POST() {
       followers,
     ].slice(-12);
 
+    const profilePicUrl = ((authorData.profilePicture ?? raw.profilePicture ?? raw.profileImageUrl) as string) ?? "";
+    const bio = ((authorData.description ?? raw.description) as string) ?? "";
+
     const { error } = await supabase
       .from("competitors")
-      .update({ followers, followers_history: history })
+      .update({ followers, followers_history: history, profile_pic_url: profilePicUrl, bio })
       .eq("id", comp.id);
 
     if (!error) updated++;

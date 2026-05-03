@@ -8,7 +8,10 @@ const ACTOR_URL =
 
 interface YTItem {
   channelUrl?: string;
+  channelHandle?: string;
   channelSubscriberCount?: number;
+  channelThumbnail?: string;
+  channelDescription?: string;
   title?: string;
   date?: string;
   likes?: number;
@@ -31,14 +34,19 @@ export async function POST() {
 
   if (!ytComps?.length) return NextResponse.json({ updated: 0, message: "Sin creadores de YouTube" });
 
-  const startUrls = ytComps.map((c) => ({
-    url: `https://www.youtube.com/${(c.handle as string).startsWith("@") ? c.handle : "@" + c.handle}`,
-  }));
+  const token = process.env.APIFY_TOKEN;
+  if (!token) return NextResponse.json({ error: "Falta APIFY_TOKEN" }, { status: 500 });
+
+  // Usar /videos para asegurar que el scraper encuentra los videos y extrae channelSubscriberCount
+  const startUrls = ytComps.map((c) => {
+    const handle = (c.handle as string).replace(/^@/, "");
+    return { url: `https://www.youtube.com/@${handle}/videos` };
+  });
 
   let items: YTItem[] = [];
   try {
     const res = await fetch(
-      `${ACTOR_URL}?token=${process.env.APIFY_TOKEN}&timeout=50`,
+      `${ACTOR_URL}?token=${token}&timeout=55`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -46,17 +54,24 @@ export async function POST() {
       }
     );
     if (!res.ok) {
-      return NextResponse.json({ error: `Apify error ${res.status}` }, { status: 502 });
+      const errText = await res.text().catch(() => "");
+      return NextResponse.json({ error: `Apify error ${res.status}: ${errText.slice(0, 200)}` }, { status: 502 });
     }
     items = await res.json();
-  } catch {
-    return NextResponse.json({ error: "No se pudo conectar con Apify" }, { status: 502 });
+  } catch (err) {
+    return NextResponse.json({ error: `No se pudo conectar con Apify: ${err instanceof Error ? err.message : ""}` }, { status: 502 });
   }
 
-  // Agrupar videos por canal
+  if (!items.length) {
+    return NextResponse.json({ error: "Apify no devolvió datos de YouTube. Verificá que los handles sean correctos.", updated: 0 }, { status: 404 });
+  }
+
+  // Agrupar videos por canal (usando channelUrl o channelHandle)
   const byChannel = new Map<string, YTItem[]>();
   for (const item of items) {
-    const key = (item.channelUrl ?? "").toLowerCase();
+    // Usar channelHandle si existe, sino extraer de channelUrl
+    const key = (item.channelHandle ?? item.channelUrl ?? "").toLowerCase().replace(/^@/, "");
+    if (!key) continue;
     if (!byChannel.has(key)) byChannel.set(key, []);
     byChannel.get(key)!.push(item);
   }
@@ -64,12 +79,27 @@ export async function POST() {
   let updated = 0;
   for (const comp of ytComps) {
     const handle = (comp.handle as string).replace(/^@/, "").toLowerCase();
-    const channelItems =
-      [...byChannel.entries()].find(([url]) => url.includes(handle))?.[1] ?? [];
 
-    if (!channelItems.length) continue;
+    // Buscar por coincidencia parcial de handle en las claves del mapa
+    const matchEntry = [...byChannel.entries()].find(([key]) =>
+      key.includes(handle) || handle.includes(key)
+    );
+    const channelItems = matchEntry?.[1] ?? [];
 
-    const subscriberCount = channelItems[0].channelSubscriberCount;
+    // También buscar en todos los items si no encontramos por canal
+    const allItems = channelItems.length > 0
+      ? channelItems
+      : items.filter((i) => {
+          const cUrl = (i.channelUrl ?? "").toLowerCase();
+          const cHandle = (i.channelHandle ?? "").toLowerCase().replace(/^@/, "");
+          return cUrl.includes(handle) || cHandle.includes(handle) || handle.includes(cHandle);
+        });
+
+    if (!allItems.length) continue;
+
+    // Encontrar item con subscriberCount
+    const itemWithSubs = allItems.find((i) => i.channelSubscriberCount && i.channelSubscriberCount > 0);
+    const subscriberCount = itemWithSubs?.channelSubscriberCount ?? 0;
     if (!subscriberCount) continue;
 
     const history = [
@@ -77,22 +107,21 @@ export async function POST() {
       subscriberCount,
     ].slice(-12);
 
-    // Engagement estimado: (likes + comments) / views
     const avgEng =
-      channelItems.length > 0
-        ? channelItems.reduce((s, v) => s + (v.likes ?? 0) + (v.commentsCount ?? 0), 0) /
-          channelItems.length /
-          Math.max(subscriberCount, 1) *
-          100
+      allItems.length > 0 && subscriberCount > 0
+        ? (allItems.reduce((s, v) => s + (v.likes ?? 0) + (v.commentsCount ?? 0), 0) / allItems.length / subscriberCount) * 100
         : 0;
 
-    const recentPosts = channelItems.slice(0, 5).map((v, i) => ({
+    const recentPosts = allItems.slice(0, 5).map((v, i) => ({
       id: v.id ?? `yt-${i}`,
       caption: v.title ?? "",
       date: (v.date ?? new Date().toISOString()).slice(0, 10),
       likes: v.likes ?? 0,
       comments: v.commentsCount ?? 0,
     }));
+
+    const profilePicUrl = itemWithSubs?.channelThumbnail ?? "";
+    const bio = itemWithSubs?.channelDescription ?? "";
 
     const { error } = await supabase
       .from("competitors")
@@ -101,6 +130,8 @@ export async function POST() {
         followers_history: history,
         engagement_rate: Math.round(avgEng * 10) / 10,
         recent_posts: recentPosts,
+        profile_pic_url: profilePicUrl,
+        bio,
       })
       .eq("id", comp.id);
 
