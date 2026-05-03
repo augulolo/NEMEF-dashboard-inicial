@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
 import { Sparkline } from "./sparkline";
-import { ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight, Trash2, Pencil, TrendingUp, TrendingDown } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight, Trash2, Pencil, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
 import { PLATFORM_LABELS, PLATFORM_STYLES } from "@/lib/calendar";
 import { formatCount, growthPct, getAvatarUrl, REGION_LABELS, type Competitor } from "@/lib/competitors";
 import type { Platform } from "@/lib/calendar";
@@ -107,15 +107,28 @@ export function CompetitorTable({
   competitors,
   onDelete,
   onEdit,
+  onSync,
 }: {
   competitors: Competitor[];
   onDelete: (id: string) => void;
   onEdit: (updated: Competitor) => void;
+  onSync?: (competitor: Competitor) => Promise<void>;
 }) {
   const [sortKey, setSortKey] = useState<SortKey>("followers");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [editing, setEditing] = useState<Competitor | null>(null);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+
+  const handleSync = async (c: Competitor) => {
+    if (!onSync || syncingId) return;
+    setSyncingId(c.id);
+    try {
+      await onSync(c);
+    } finally {
+      setSyncingId(null);
+    }
+  };
 
   const sorted = useMemo(() => {
     const list = [...competitors];
@@ -259,6 +272,24 @@ export function CompetitorTable({
                     </td>
                     <td className="pr-3">
                       <div className="flex items-center gap-1">
+                        {onSync && c.platform !== "tiktok" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                              "h-7 w-7 transition-colors",
+                              syncingId === c.id
+                                ? "text-primary"
+                                : "text-muted-foreground hover:text-primary"
+                            )}
+                            onClick={() => handleSync(c)}
+                            disabled={syncingId !== null}
+                            aria-label="Sincronizar datos reales"
+                            title="Obtener seguidores y métricas reales"
+                          >
+                            <RefreshCw className={cn("h-3.5 w-3.5", syncingId === c.id && "animate-spin")} />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"

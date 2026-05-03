@@ -191,6 +191,34 @@ const handleAdd = async (c: Competitor) => {
     }
   };
 
+  const handleSyncCompetitor = async (competitor: Competitor) => {
+    const { platform, id, handle, name } = competitor;
+    if (!["instagram", "twitter", "youtube"].includes(platform)) {
+      toast(`Sincronización no disponible para ${platform}`, "error");
+      return;
+    }
+    try {
+      const res = await fetch("/api/sync-competitor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, handle, platform }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast(json.error ?? "Error al sincronizar", "error");
+      } else {
+        // Reload this competitor from DB so we get updated fields
+        const { data } = await supabase.from("competitors").select("*").eq("id", id).single();
+        if (data) {
+          setCompetitors((prev) => prev.map((c) => (c.id === id ? fromDB(data) : c)));
+        }
+        toast(`✓ ${name} actualizado (${json.followers?.toLocaleString("es-AR")} seguidores)`);
+      }
+    } catch {
+      toast("No se pudo conectar con el servidor", "error");
+    }
+  };
+
   const handleSyncWithToast = async (platform: "instagram" | "youtube" | "twitter") => {
     setSyncingPlatform(platform);
     setSyncError(null);
@@ -299,7 +327,7 @@ const handleAdd = async (c: Competitor) => {
       {loading ? (
         <div className="text-sm text-muted-foreground">Cargando creadores…</div>
       ) : (
-        <CompetitorTable competitors={filtered} onDelete={handleDelete} onEdit={handleEdit} />
+        <CompetitorTable competitors={filtered} onDelete={handleDelete} onEdit={handleEdit} onSync={handleSyncCompetitor} />
       )}
     </>
   );
