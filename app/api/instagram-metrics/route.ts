@@ -54,8 +54,8 @@ export async function GET() {
     );
 
     // Promedios
-    const totalLikes = mediaWithInsights.reduce((s, p) => s + ((p.like_count as number) ?? 0), 0);
-    const totalComments = mediaWithInsights.reduce((s, p) => s + ((p.comments_count as number) ?? 0), 0);
+    const totalLikes = mediaWithInsights.reduce((s, p) => s + (((p as Record<string, unknown>).like_count as number) ?? 0), 0);
+    const totalComments = mediaWithInsights.reduce((s, p) => s + (((p as Record<string, unknown>).comments_count as number) ?? 0), 0);
     const totalReach = mediaWithInsights.reduce((s, p) => s + ((p.reach as number) ?? 0), 0);
     const count = mediaWithInsights.length || 1;
 
