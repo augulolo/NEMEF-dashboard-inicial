@@ -130,6 +130,17 @@ export default function CalendarPage() {
 
   const dayItems = filtered.filter((i) => i.date === selectedDay);
 
+  const handleAddItem = async (item: Omit<CalendarItem, "id">) => {
+    const { data, error } = await supabase
+      .from("calendar_items")
+      .insert({ title: item.title, platform: item.platform, status: item.status, date: item.date })
+      .select()
+      .single();
+    if (!error && data) {
+      setItems((prev) => [...prev, fromDB(data)]);
+    }
+  };
+
   return (
     <>
       <PageHeader title="Calendario de contenido" description="Resumen mensual de lo programado y publicado." />
@@ -193,7 +204,7 @@ export default function CalendarPage() {
             today={TODAY}
             onSelectDay={setSelectedDay}
           />
-          <DayDetail date={selectedDay} items={dayItems} />
+          <DayDetail date={selectedDay} items={dayItems} onAdd={handleAddItem} />
         </div>
       )}
     </>

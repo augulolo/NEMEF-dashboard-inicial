@@ -8,7 +8,7 @@ import { POST_STATUSES, STATUS_LABELS, POST_TYPES, TYPE_LABELS, type Post } from
 import { PLATFORMS, PLATFORM_LABELS, PLATFORM_STYLES } from "@/lib/calendar";
 import type { CalendarItem } from "@/lib/calendar";
 import { cn } from "@/lib/utils";
-import { FileText, CheckCircle2, Clock, Lightbulb, TrendingUp, TrendingDown } from "lucide-react";
+import { FileText, CheckCircle2, Clock, Lightbulb, TrendingUp, TrendingDown, Sparkles, RefreshCw } from "lucide-react";
 import { growthPct, formatCount } from "@/lib/competitors";
 import type { Competitor } from "@/lib/competitors";
 import { Sparkline } from "@/components/competitors/sparkline";
@@ -65,11 +65,16 @@ function KpiCard({ icon: Icon, label, value, color }: {
   );
 }
 
+interface InsightBullet { title: string; text: string }
+
 export default function AnalyticsPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [calendarItems, setCalendarItems] = useState<CalendarItem[]>([]);
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [insights, setInsights] = useState<InsightBullet[] | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [insightsError, setInsightsError] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -126,6 +131,36 @@ export default function AnalyticsPage() {
   }).reverse();
 
   const maxWeekly = Math.max(...weeklyData.map((w) => w.count), 1);
+
+  const generateInsights = async () => {
+    if (posts.length === 0) return;
+    setInsightsLoading(true);
+    setInsightsError(null);
+    try {
+      const publishedThisWeek = weeklyData[weeklyData.length - 1]?.count ?? 0;
+      const publishedLastWeek = weeklyData[weeklyData.length - 2]?.count ?? 0;
+      const totalPublished = posts.filter((p) => p.status === "published").length;
+      const totalScheduled = posts.filter((p) => p.status === "scheduled").length;
+      const avgWeeklyPosts = weeklyData.reduce((s, w) => s + w.count, 0) / Math.max(weeklyData.filter((w) => w.count > 0).length, 1);
+      const typeCounts = POST_TYPES.map((t) => ({ t, n: posts.filter((p) => p.type === t).length }));
+      const topType = TYPE_LABELS[typeCounts.sort((a, b) => b.n - a.n)[0].t];
+      const topCompetitors = competitors.slice(0, 4).map((c) => ({
+        name: c.name, platform: c.platform, engagementRate: c.engagementRate, postsPerWeek: c.postsPerWeek,
+      }));
+      const res = await fetch("/api/weekly-insight", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stats: { publishedThisWeek, publishedLastWeek, totalPublished, totalScheduled, avgWeeklyPosts, topType, topCompetitors } }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setInsightsError(json.error ?? "Error al generar insights"); return; }
+      setInsights(json.bullets);
+    } catch {
+      setInsightsError("No se pudo conectar con el servidor");
+    } finally {
+      setInsightsLoading(false);
+    }
+  };
 
   const totalPosts  = posts.length;
   const published   = posts.filter((p) => p.status === "published").length;
@@ -203,6 +238,60 @@ export default function AnalyticsPage() {
               </div>
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Insight semanal con IA */}
+      <Card className="mb-6">
+        <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+            <Sparkles className="h-3.5 w-3.5 text-primary" />
+            Insight semanal con IA
+          </CardTitle>
+          <button
+            onClick={generateInsights}
+            disabled={insightsLoading || posts.length === 0}
+            className={cn(
+              "inline-flex items-center gap-1.5 text-xs rounded-md border px-3 py-1.5 font-medium transition-colors",
+              insightsLoading || posts.length === 0
+                ? "border-border text-muted-foreground cursor-not-allowed opacity-60"
+                : "border-primary text-primary hover:bg-primary/10"
+            )}
+          >
+            <RefreshCw className={cn("h-3 w-3", insightsLoading && "animate-spin")} />
+            {insightsLoading ? "Analizando…" : insights ? "Actualizar" : "Analizar"}
+          </button>
+        </CardHeader>
+        <CardContent>
+          {insightsError && (
+            <p className="text-xs text-red-400">{insightsError}</p>
+          )}
+          {!insights && !insightsLoading && !insightsError && (
+            <p className="text-sm text-muted-foreground">
+              Hacé clic en "Analizar" para que la IA revise tus métricas y te dé 3 recomendaciones concretas.
+            </p>
+          )}
+          {insightsLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+              Analizando tu desempeño…
+            </div>
+          )}
+          {insights && !insightsLoading && (
+            <div className="grid gap-3 md:grid-cols-3">
+              {insights.map((b, i) => (
+                <div key={i} className="rounded-lg border bg-background/40 p-4 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="h-5 w-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center shrink-0">
+                      {i + 1}
+                    </span>
+                    <p className="text-sm font-semibold leading-snug">{b.title}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{b.text}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
