@@ -8,11 +8,30 @@ import { Card, CardContent } from "@/components/ui/card";
 import { NewsCard } from "@/components/news/news-card";
 import { TopicFilter } from "@/components/news/topic-filter";
 import { CaptionDialog } from "@/components/news/caption-dialog";
-import { RefreshCw, Search, Newspaper, ExternalLink, Sparkles } from "lucide-react";
+import { RefreshCw, Search, Newspaper, ExternalLink, Sparkles, TrendingUp, X, Film, Layers, Image as ImageIcon, Circle } from "lucide-react";
 import { type NewsItem, type NewsTopic, TOPIC_LABELS, TOPIC_STYLES } from "@/lib/news";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/lib/toast";
+
+const FINANCE_KEYWORDS = [
+  "dólar", "inflación", "reservas", "tasas", "inversión", "acciones",
+  "mercado", "deuda", "cepo", "bcra", "bitcoin", "cripto",
+  "plazo fijo", "cedear", "bono", "tarjeta",
+];
+
+const FORMAT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  Reel: Film,
+  Carrusel: Layers,
+  Post: ImageIcon,
+  Historia: Circle,
+};
+
+type TodayIdea = {
+  hook: string;
+  format: string;
+  caption: string;
+};
 
 function timeAgo(iso: string): string {
   if (!iso) return "";
@@ -103,6 +122,35 @@ function FeaturedNewsCard({
   );
 }
 
+function getTrendingKeywords(items: NewsItem[]): { keyword: string; count: number }[] {
+  const now = Date.now();
+  const h24 = 24 * 60 * 60 * 1000;
+  const recent = items.filter((it) => {
+    if (!it.publishedAt) return true;
+    return now - new Date(it.publishedAt).getTime() < h24;
+  });
+
+  const pool = recent.length > 0 ? recent : items;
+
+  const counts: Record<string, number> = {};
+  for (const kw of FINANCE_KEYWORDS) counts[kw] = 0;
+
+  for (const item of pool) {
+    const text = `${item.title} ${item.summary}`.toLowerCase();
+    for (const kw of FINANCE_KEYWORDS) {
+      if (text.includes(kw.toLowerCase())) {
+        counts[kw]++;
+      }
+    }
+  }
+
+  return Object.entries(counts)
+    .filter(([, c]) => c > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([keyword, count]) => ({ keyword, count }));
+}
+
 export default function NewsPage() {
   const [items, setItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,6 +158,11 @@ export default function NewsPage() {
   const [fetchedAt, setFetchedAt] = useState<string | null>(null);
   const [topic, setTopic] = useState<NewsTopic | "all">("all");
   const [query, setQuery] = useState("");
+
+  // "¿Qué publicar hoy?" state
+  const [todayIdea, setTodayIdea] = useState<TodayIdea | null>(null);
+  const [loadingTodayIdea, setLoadingTodayIdea] = useState(false);
+  const [savingTodayIdea, setSavingTodayIdea] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -148,6 +201,8 @@ export default function NewsPage() {
 
   const sources = useMemo(() => Array.from(new Set(items.map((i) => i.source))).sort(), [items]);
 
+  const trending = useMemo(() => getTrendingKeywords(items), [items]);
+
   const handleCreatePost = async (caption: string) => {
     const { error } = await supabase.from("posts").insert({
       caption,
@@ -162,6 +217,47 @@ export default function NewsPage() {
     }
   };
 
+  const handleQuePubHoy = async () => {
+    const topKeyword = trending.length > 0 ? trending[0].keyword : "finanzas personales";
+    setLoadingTodayIdea(true);
+    setTodayIdea(null);
+    try {
+      const res = await fetch("/api/generate-ideas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic: topKeyword }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ideas?.[0]) {
+        setTodayIdea(data.ideas[0]);
+      } else {
+        toast(data.error ?? "Error al generar idea", "error");
+      }
+    } catch {
+      toast("No se pudo conectar con el servidor", "error");
+    } finally {
+      setLoadingTodayIdea(false);
+    }
+  };
+
+  const handleSaveTodayIdea = async () => {
+    if (!todayIdea) return;
+    setSavingTodayIdea(true);
+    const { error } = await supabase.from("posts").insert({
+      caption: todayIdea.caption,
+      type: "reel",
+      status: "draft",
+      scheduled_date: null,
+    });
+    setSavingTodayIdea(false);
+    if (!error) {
+      toast("Borrador guardado en Instagram ✓");
+      setTodayIdea(null);
+    } else {
+      toast("Error al guardar borrador", "error");
+    }
+  };
+
   return (
     <>
       <div className="flex items-start justify-between gap-4 mb-8">
@@ -169,11 +265,82 @@ export default function NewsPage() {
           title="Noticias"
           description="Últimas noticias de economía y finanzas argentinas — agregadas desde feeds RSS públicos."
         />
-        <Button variant="outline" onClick={load} disabled={loading}>
-          <RefreshCw className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-          Actualizar
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            onClick={handleQuePubHoy}
+            disabled={loadingTodayIdea || loading}
+            className="border-primary/40 text-primary hover:bg-primary/10"
+          >
+            {loadingTodayIdea ? (
+              <Sparkles className="h-4 w-4 animate-pulse mr-2" />
+            ) : (
+              <Sparkles className="h-4 w-4 mr-2" />
+            )}
+            {loadingTodayIdea ? "Generando…" : "¿Qué publicar hoy?"}
+          </Button>
+          <Button variant="outline" onClick={load} disabled={loading}>
+            <RefreshCw className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+            Actualizar
+          </Button>
+        </div>
       </div>
+
+      {/* Idea del día — inline card */}
+      {loadingTodayIdea && (
+        <Card className="mb-6 animate-pulse border-primary/20">
+          <CardContent className="p-5 space-y-3">
+            <div className="h-4 w-1/4 bg-muted rounded" />
+            <div className="h-5 w-2/3 bg-muted rounded" />
+            <div className="h-4 w-full bg-muted rounded" />
+            <div className="h-4 w-5/6 bg-muted rounded" />
+          </CardContent>
+        </Card>
+      )}
+
+      {todayIdea && !loadingTodayIdea && (
+        <Card className="mb-6 border-primary/30 bg-primary/5">
+          <CardContent className="p-5 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                Idea para publicar hoy
+              </p>
+              <button
+                onClick={() => setTodayIdea(null)}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="flex items-start gap-2">
+              <div className="flex items-center gap-1.5 shrink-0 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+                {(() => {
+                  const Icon = FORMAT_ICONS[todayIdea.format] ?? ImageIcon;
+                  return <Icon className="h-3 w-3" />;
+                })()}
+                {todayIdea.format}
+              </div>
+              <h3 className="font-semibold leading-snug">{todayIdea.hook}</h3>
+            </div>
+
+            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap line-clamp-4">
+              {todayIdea.caption}
+            </p>
+
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" onClick={handleSaveTodayIdea} disabled={savingTodayIdea}>
+                <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                {savingTodayIdea ? "Guardando…" : "Guardar borrador"}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setTodayIdea(null)}>
+                Descartar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-4 mb-6">
         <Stat label="Artículos" value={String(items.length)} />
@@ -181,6 +348,43 @@ export default function NewsPage() {
         <Stat label="Mercados" value={String(counts.mercados)} />
         <Stat label="Macro" value={String(counts.macro)} />
       </div>
+
+      {/* Temas calientes esta semana */}
+      {trending.length > 0 && (
+        <div className="mb-6">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
+            <TrendingUp className="h-3.5 w-3.5 text-primary" />
+            Temas calientes esta semana
+          </p>
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {trending.map(({ keyword, count }) => (
+              <button
+                key={keyword}
+                onClick={() => setQuery(keyword)}
+                className={cn(
+                  "shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap",
+                  query.toLowerCase() === keyword.toLowerCase()
+                    ? "border-primary bg-primary/20 text-primary"
+                    : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-primary/5"
+                )}
+              >
+                <TrendingUp className="h-3 w-3" />
+                {keyword}
+                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] tabular-nums">{count}</span>
+              </button>
+            ))}
+            {query && trending.some((t) => t.keyword.toLowerCase() === query.toLowerCase()) && (
+              <button
+                onClick={() => setQuery("")}
+                className="shrink-0 inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="h-3 w-3" />
+                Limpiar
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
         <div className="relative flex-1 max-w-md">

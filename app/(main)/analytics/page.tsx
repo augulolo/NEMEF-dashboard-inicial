@@ -13,6 +13,7 @@ import { growthPct, formatCount } from "@/lib/competitors";
 import type { Competitor } from "@/lib/competitors";
 import { Sparkline } from "@/components/competitors/sparkline";
 import { MyAccount } from "@/components/analytics/my-account";
+import { BenchmarkCard } from "@/components/analytics/benchmark-card";
 
 const STATUS_COLORS: Record<string, string> = {
   published: "bg-emerald-500",
@@ -326,6 +327,9 @@ export default function AnalyticsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Benchmark vs creadores */}
+      <BenchmarkCard competitors={competitors} />
 
       {/* Mejor día para publicar */}
       {posts.filter((p) => p.status === "published").length > 0 && (
