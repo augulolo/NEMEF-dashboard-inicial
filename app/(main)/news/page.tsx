@@ -7,10 +7,101 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { NewsCard } from "@/components/news/news-card";
 import { TopicFilter } from "@/components/news/topic-filter";
-import { RefreshCw, Search, Newspaper } from "lucide-react";
-import { type NewsItem, type NewsTopic } from "@/lib/news";
+import { CaptionDialog } from "@/components/news/caption-dialog";
+import { RefreshCw, Search, Newspaper, ExternalLink, Sparkles } from "lucide-react";
+import { type NewsItem, type NewsTopic, TOPIC_LABELS, TOPIC_STYLES } from "@/lib/news";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/lib/toast";
+
+function timeAgo(iso: string): string {
+  if (!iso) return "";
+  const then = new Date(iso).getTime();
+  if (isNaN(then)) return "";
+  const diff = Date.now() - then;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "recién";
+  if (mins < 60) return `hace ${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `hace ${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `hace ${days}d`;
+  return new Date(iso).toLocaleDateString("es-AR", { month: "short", day: "numeric" });
+}
+
+function FeaturedNewsCard({
+  item,
+  onCreatePost,
+}: {
+  item: NewsItem;
+  onCreatePost?: (caption: string) => void;
+}) {
+  const [showDialog, setShowDialog] = useState(false);
+
+  return (
+    <>
+      {showDialog && onCreatePost && (
+        <CaptionDialog
+          item={item}
+          onClose={() => setShowDialog(false)}
+          onUse={(caption) => {
+            onCreatePost(caption);
+            setShowDialog(false);
+          }}
+        />
+      )}
+      <Card className="border-primary/30 bg-primary/5 hover:border-primary/60 transition-colors">
+        <CardContent className="p-6 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground min-w-0">
+              <span className="font-medium text-foreground/80 truncate">{item.source}</span>
+              <span>·</span>
+              <span>{timeAgo(item.publishedAt)}</span>
+            </div>
+            <div className="flex flex-wrap gap-1 shrink-0">
+              {item.topics.map((t) => (
+                <span
+                  key={t}
+                  className={cn(
+                    "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium",
+                    TOPIC_STYLES[t]
+                  )}
+                >
+                  {TOPIC_LABELS[t]}
+                </span>
+              ))}
+            </div>
+          </div>
+          <a
+            href={item.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block group"
+          >
+            <h2 className="text-lg font-semibold leading-snug flex items-start gap-1.5 group-hover:text-primary transition-colors">
+              <span>{item.title}</span>
+              <ExternalLink className="h-4 w-4 mt-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </h2>
+          </a>
+          {item.summary && (
+            <p className="text-sm text-muted-foreground leading-relaxed">{item.summary}</p>
+          )}
+          {onCreatePost && (
+            <div className="pt-1">
+              <button
+                onClick={() => setShowDialog(true)}
+                className="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors font-medium border border-primary/30 rounded-md px-3 py-1.5 bg-primary/10 hover:bg-primary/20"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Compartir en IG — Generar caption con IA
+              </button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </>
+  );
+}
 
 export default function NewsPage() {
   const [items, setItems] = useState<NewsItem[]>([]);
@@ -140,11 +231,24 @@ export default function NewsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((it) => (
-            <NewsCard key={it.id} item={it} onCreatePost={handleCreatePost} />
-          ))}
-        </div>
+        <>
+          {/* Artículo destacado */}
+          {filtered.length > 0 && (
+            <div className="mb-6">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Destacada</p>
+              <FeaturedNewsCard item={filtered[0]} onCreatePost={handleCreatePost} />
+            </div>
+          )}
+
+          {/* Grilla de noticias restantes */}
+          {filtered.length > 1 && (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {filtered.slice(1).map((it) => (
+                <NewsCard key={it.id} item={it} onCreatePost={handleCreatePost} />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </>
   );

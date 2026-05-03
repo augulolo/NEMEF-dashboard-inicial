@@ -4,10 +4,17 @@ import { PLATFORM_LABELS, PLATFORM_STYLES } from "@/lib/calendar";
 import { cn } from "@/lib/utils";
 import {
   CheckCircle2, Clock, AlertCircle, ChevronRight,
-  Flame, Instagram, Lightbulb, Newspaper, Sparkles,
+  Flame, Instagram, Lightbulb, Newspaper, Sparkles, TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
 import { OwnAccountWidget } from "@/components/home/own-account-widget";
+
+function serverGrowthPct(history: number[]): number {
+  if (!history || history.length < 2) return 0;
+  const first = history[0], last = history[history.length - 1];
+  if (!first || first === 0) return 0;
+  return ((last - first) / first) * 100;
+}
 
 export default async function Home() {
   const supabase = await createServerSupabaseClient();
@@ -22,7 +29,7 @@ export default async function Home() {
   weekStart.setDate(todayDate.getDate() - ((todayDate.getDay() + 6) % 7));
   const weekStartStr = weekStart.toLocaleDateString("en-CA");
 
-  const [postsRes, overdueRes, todayPostsRes, weekPublishedRes, upcomingRes] = await Promise.all([
+  const [postsRes, overdueRes, todayPostsRes, weekPublishedRes, upcomingRes, newsRes, competitorsRes] = await Promise.all([
     // Conteo total
     supabase.from("posts").select("id, status"),
     // Posts vencidos (fecha pasada, aún en scheduled)
@@ -50,6 +57,16 @@ export default async function Home() {
       .gt("date", today)
       .order("date")
       .limit(4),
+    // Últimas noticias
+    supabase.from("news_cache")
+      .select("id, title, source, topic, url, published_at")
+      .order("published_at", { ascending: false })
+      .limit(3),
+    // Top competidores por seguidores
+    supabase.from("competitors")
+      .select("id, name, handle, platform, followers, followers_history, profile_pic_url")
+      .order("followers", { ascending: false })
+      .limit(5),
   ]);
 
   const posts          = postsRes.data ?? [];
@@ -57,6 +74,19 @@ export default async function Home() {
   const todayPosts     = todayPostsRes.data ?? [];
   const weekPublished  = weekPublishedRes.data ?? [];
   const upcoming       = upcomingRes.data ?? [];
+  const newsItems      = newsRes?.data ?? [];
+
+  // Top 3 competidores por crecimiento
+  const rawCompetitors = competitorsRes?.data ?? [];
+  const topCompetitors = rawCompetitors
+    .map((c) => ({
+      ...c,
+      growthPct: serverGrowthPct(
+        Array.isArray(c.followers_history) ? c.followers_history : []
+      ),
+    }))
+    .sort((a, b) => b.growthPct - a.growthPct)
+    .slice(0, 3);
   const published      = posts.filter((p) => p.status === "published").length;
 
   // Racha de semanas con al menos 1 post publicado (últimas 12 semanas)
@@ -131,6 +161,99 @@ export default async function Home() {
         <KpiCard label="Racha de semanas"  value={streak}               color="text-amber-400"   icon={Flame}
           suffix={streak === 1 ? " sem" : " sem"} />
       </div>
+
+      {/* Últimas noticias financieras */}
+      {newsItems.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+              <Newspaper className="h-3.5 w-3.5" />
+              Últimas noticias financieras
+            </h2>
+            <Link href="/news" className="text-xs text-primary hover:underline flex items-center gap-1">
+              Ver todas <ChevronRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-none">
+            {newsItems.map((item) => (
+              <a
+                key={item.id}
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 w-64 rounded-lg border bg-card p-4 hover:border-primary/50 transition-colors block"
+              >
+                <p className="text-sm font-medium leading-snug line-clamp-2 mb-2">{item.title}</p>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground/70 truncate">{item.source}</span>
+                  {item.published_at && (
+                    <>
+                      <span>·</span>
+                      <span className="shrink-0">
+                        {new Date(item.published_at).toLocaleDateString("es-AR", {
+                          day: "numeric",
+                          month: "short",
+                        })}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Creadores en tendencia */}
+      {topCompetitors.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+              <TrendingUp className="h-3.5 w-3.5" />
+              Creadores en tendencia
+            </h2>
+            <Link href="/competitors" className="text-xs text-primary hover:underline flex items-center gap-1">
+              Ver todos <ChevronRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <Card>
+            <CardContent className="p-4">
+              <div className="space-y-3">
+                {topCompetitors.map((c) => {
+                  const initials = c.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
+                  return (
+                    <div key={c.id} className="flex items-center gap-3">
+                      {c.profile_pic_url ? (
+                        <img
+                          src={c.profile_pic_url}
+                          alt={c.name}
+                          className="h-9 w-9 rounded-full object-cover bg-muted shrink-0"
+                        />
+                      ) : (
+                        <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0 select-none">
+                          {initials}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{c.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{c.handle}</p>
+                      </div>
+                      <div className={cn(
+                        "text-xs font-semibold tabular-nums shrink-0 px-2 py-0.5 rounded-full border",
+                        c.growthPct >= 0
+                          ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
+                          : "text-red-400 border-red-500/30 bg-red-500/10"
+                      )}>
+                        {c.growthPct >= 0 ? "+" : ""}{c.growthPct.toFixed(1)}%
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2 mb-6">
         {/* Posts de hoy */}

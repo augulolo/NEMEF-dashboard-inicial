@@ -9,8 +9,16 @@ import { Dialog } from "@/components/ui/dialog";
 import { Sparkline } from "./sparkline";
 import {
   ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight,
-  Trash2, Pencil, TrendingUp, TrendingDown, RefreshCw, ExternalLink,
+  Trash2, Pencil, TrendingUp, TrendingDown, RefreshCw, ExternalLink, Sparkles,
 } from "lucide-react";
+
+interface AnalysisResult {
+  strengths: string[];
+  weaknesses: string[];
+  contentStrategy: string;
+  opportunities: string[];
+  verdict: string;
+}
 import { PLATFORM_LABELS, PLATFORM_STYLES } from "@/lib/calendar";
 import { formatCount, growthPct, getAvatarUrl, REGION_LABELS, type Competitor } from "@/lib/competitors";
 import type { Platform } from "@/lib/calendar";
@@ -148,6 +156,39 @@ export function CompetitorTable({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [editing, setEditing] = useState<Competitor | null>(null);
   const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [analyzingId, setAnalyzingId] = useState<string | null>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<Record<string, AnalysisResult>>({});
+
+  const handleAnalyze = async (c: Competitor) => {
+    if (analyzingId) return;
+    setAnalyzingId(c.id);
+    try {
+      const res = await fetch("/api/analyze-competitor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          competitor: {
+            name: c.name,
+            handle: c.handle,
+            platform: c.platform,
+            followers: c.followers,
+            engagementRate: c.engagementRate,
+            postsPerWeek: c.postsPerWeek,
+            followersHistory: c.followersHistory,
+            recentPosts: c.recentPosts,
+            bio: c.bio,
+          },
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setAiAnalysis((prev) => ({ ...prev, [c.id]: data }));
+    } catch (e) {
+      console.error("Error al analizar:", e);
+    } finally {
+      setAnalyzingId(null);
+    }
+  };
 
   const handleSync = async (c: Competitor) => {
     if (!onSync || syncingId) return;
@@ -358,6 +399,88 @@ export function CompetitorTable({
                             &ldquo;{c.bio.slice(0, 150)}{c.bio.length > 150 ? "…" : ""}&rdquo;
                           </p>
                         )}
+
+                        {/* Botón de análisis IA */}
+                        <div className="mb-4">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleAnalyze(c)}
+                            disabled={analyzingId !== null}
+                            className="h-8 gap-2 text-xs border-primary/40 text-primary hover:bg-primary/10"
+                          >
+                            {analyzingId === c.id ? (
+                              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-3.5 w-3.5" />
+                            )}
+                            {analyzingId === c.id ? "Analizando…" : "Analizar con IA"}
+                          </Button>
+                        </div>
+
+                        {/* Panel de análisis IA */}
+                        {aiAnalysis[c.id] && (
+                          <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-primary mb-2 flex items-center gap-1.5">
+                              <Sparkles className="h-3 w-3" />
+                              Análisis IA
+                            </p>
+
+                            {/* Estrategia */}
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Estrategia</p>
+                              <p className="text-sm text-foreground/90 leading-relaxed">{aiAnalysis[c.id].contentStrategy}</p>
+                            </div>
+
+                            <div className="grid md:grid-cols-2 gap-3">
+                              {/* Fortalezas */}
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Fortalezas</p>
+                                <ul className="space-y-1">
+                                  {aiAnalysis[c.id].strengths.map((s, i) => (
+                                    <li key={i} className="flex items-start gap-2 text-sm">
+                                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0 mt-1.5" />
+                                      <span>{s}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+
+                              {/* Debilidades */}
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Debilidades</p>
+                                <ul className="space-y-1">
+                                  {aiAnalysis[c.id].weaknesses.map((w, i) => (
+                                    <li key={i} className="flex items-start gap-2 text-sm">
+                                      <span className="h-1.5 w-1.5 rounded-full bg-red-400 shrink-0 mt-1.5" />
+                                      <span>{w}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+
+                            {/* Oportunidades */}
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Oportunidades para NEMEF</p>
+                              <ul className="space-y-1">
+                                {aiAnalysis[c.id].opportunities.map((o, i) => (
+                                  <li key={i} className="flex items-start gap-2 text-sm">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0 mt-1.5" />
+                                    <span>{o}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            {/* Veredicto */}
+                            <div className="rounded-md bg-primary/10 border border-primary/30 px-3 py-2">
+                              <p className="text-xs font-medium text-primary mb-0.5">Veredicto</p>
+                              <p className="text-sm font-medium">{aiAnalysis[c.id].verdict}</p>
+                            </div>
+                          </div>
+                        )}
+
                         <p className="text-xs uppercase tracking-wide text-muted-foreground mb-3">
                           Posts recientes
                         </p>

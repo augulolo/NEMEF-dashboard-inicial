@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import {
   Image as ImageIcon, Film, Circle, Layers, Calendar,
-  Trash2, Pencil, Check, X, Copy, CheckCircle2, Repeat2,
+  Trash2, Pencil, Check, X, Copy, CheckCircle2, Repeat2, Star, RefreshCw,
 } from "lucide-react";
 import type { Post, PostType, PostStatus } from "@/lib/posts";
 import { TYPE_LABELS, STATUS_LABELS, POST_TYPES, POST_STATUSES } from "@/lib/posts";
@@ -41,6 +41,35 @@ export function PostCard({
   const [scheduledDate, setScheduledDate] = useState(post.scheduledDate ?? "");
   const [copied, setCopied] = useState(false);
   const [repurposing, setRepurposing] = useState(false);
+  const [score, setScore] = useState<{ value: number; tip: string } | null>(null);
+  const [scoring, setScoring] = useState(false);
+
+  const handleScore = async () => {
+    if (scoring) return;
+    setScoring(true);
+    try {
+      const res = await fetch("/api/score-caption", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caption: post.caption, type: post.type }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setScore({ value: data.score, tip: data.tip });
+    } catch (e) {
+      console.error("Error al puntuar:", e);
+    } finally {
+      setScoring(false);
+    }
+  };
+
+  const scoreColor = score
+    ? score.value >= 8
+      ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
+      : score.value >= 5
+      ? "bg-amber-500/20 text-amber-400 border-amber-500/40"
+      : "bg-red-500/20 text-red-400 border-red-500/40"
+    : "";
 
   const isOverdue = post.status === "scheduled" && post.scheduledDate && post.scheduledDate < TODAY;
 
@@ -143,6 +172,25 @@ export function PostCard({
               <Button
                 variant="ghost"
                 size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-amber-400"
+                onClick={handleScore}
+                disabled={scoring}
+                aria-label="Puntuar caption con IA"
+                title="Puntuar caption con IA"
+              >
+                {scoring
+                  ? <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  : <Star className="h-3.5 w-3.5" />
+                }
+              </Button>
+              {score && (
+                <span className={`inline-flex items-center justify-center h-5 min-w-[20px] rounded-full border text-[10px] font-bold tabular-nums px-1 ${scoreColor}`}>
+                  {score.value}
+                </span>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
                 className="h-7 w-7 text-muted-foreground hover:text-foreground"
                 onClick={handleCopy}
                 aria-label="Copiar caption"
@@ -186,6 +234,13 @@ export function PostCard({
 
           {/* Caption */}
           <p className="text-sm leading-relaxed line-clamp-4">{post.caption}</p>
+
+          {/* Score tip */}
+          {score && (
+            <div className={`rounded-md border px-3 py-2 text-xs ${scoreColor}`}>
+              <span className="font-semibold">Consejo IA:</span>{" "}{score.tip}
+            </div>
+          )}
 
           {/* Footer */}
           <div className="flex items-center justify-between pt-2 border-t gap-2">
