@@ -109,6 +109,24 @@ export default function AnalyticsPage() {
     });
   }, []);
 
+  // Publicaciones por semana — últimas 8 semanas
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+  const weeklyData = Array.from({ length: 8 }, (_, i) => {
+    const end = new Date(today + "T00:00:00");
+    end.setDate(end.getDate() - i * 7);
+    const start = new Date(end);
+    start.setDate(start.getDate() - 6);
+    const ws = start.toLocaleDateString("en-CA");
+    const we = end.toLocaleDateString("en-CA");
+    const label = start.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+    const count = posts.filter(
+      (p) => p.status === "published" && p.scheduledDate && p.scheduledDate >= ws && p.scheduledDate <= we
+    ).length;
+    return { label, count };
+  }).reverse();
+
+  const maxWeekly = Math.max(...weeklyData.map((w) => w.count), 1);
+
   const totalPosts  = posts.length;
   const published   = posts.filter((p) => p.status === "published").length;
   const scheduled   = posts.filter((p) => p.status === "scheduled").length;
@@ -162,6 +180,31 @@ export default function AnalyticsPage() {
         <KpiCard icon={Clock}         label="Programados"          value={scheduled}  color="text-blue-400" />
         <KpiCard icon={Lightbulb}     label="Ideas y borradores"   value={ideas}      color="text-amber-400" />
       </div>
+
+      {/* Tendencia semanal de publicación */}
+      <Card className="mb-6">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Posts publicados por semana (últimas 8 semanas)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-end gap-2 h-24">
+            {weeklyData.map((w, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                <span className="text-xs tabular-nums text-muted-foreground">{w.count || ""}</span>
+                <div className="w-full rounded-sm bg-muted overflow-hidden" style={{ height: "64px" }}>
+                  <div
+                    className="w-full bg-primary rounded-sm transition-all duration-500"
+                    style={{ height: `${(w.count / maxWeekly) * 100}%`, marginTop: `${100 - (w.count / maxWeekly) * 100}%` }}
+                  />
+                </div>
+                <span className="text-[10px] text-muted-foreground truncate w-full text-center">{w.label}</span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Distribución de posts */}
       <div className="grid gap-4 md:grid-cols-2 mb-6">

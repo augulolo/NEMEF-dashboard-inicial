@@ -220,7 +220,14 @@ export function CompetitorTable({
                       <div className="flex items-center gap-3">
                         <CompetitorAvatar name={c.name} platform={c.platform} handle={c.handle} />
                         <div>
-                          <div className="font-medium">{c.name}</div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium">{c.name}</span>
+                            {c.followersHistory.length <= 8 && (
+                              <span className="text-[10px] border border-amber-500/40 text-amber-400 rounded px-1 py-0.5 leading-none">
+                                estimado
+                              </span>
+                            )}
+                          </div>
                           <div className="text-xs text-muted-foreground">{c.handle}</div>
                         </div>
                       </div>
