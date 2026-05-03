@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { NewPostForm } from "@/components/instagram/new-post-form";
 import { PostColumn } from "@/components/instagram/post-column";
-import { Calendar, FileText, CheckCircle2, Inbox, AlertCircle } from "lucide-react";
+import { Calendar, FileText, CheckCircle2, Inbox, AlertCircle, Search, X } from "lucide-react";
 import { POST_STATUSES, POST_TYPES, TYPE_LABELS, SEED_POSTS, type Post, type PostStatus, type PostType } from "@/lib/posts";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/lib/toast";
@@ -34,6 +34,7 @@ export default function InstagramPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<PostType | "all">("all");
+  const [search, setSearch] = useState("");
 
   // Carga inicial desde Supabase
   useEffect(() => {
@@ -65,10 +66,13 @@ export default function InstagramPage() {
       });
   }, []);
 
-  const filteredPosts = useMemo(
-    () => typeFilter === "all" ? posts : posts.filter((p) => p.type === typeFilter),
-    [posts, typeFilter]
-  );
+  const filteredPosts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return posts.filter((p) =>
+      (typeFilter === "all" || p.type === typeFilter) &&
+      (!q || p.caption.toLowerCase().includes(q))
+    );
+  }, [posts, typeFilter, search]);
 
   const grouped = useMemo(() => {
     const g: Record<PostStatus, Post[]> = { scheduled: [], draft: [], published: [], backlog: [] };
@@ -172,6 +176,23 @@ export default function InstagramPage() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Buscador */}
+      <div className="relative mb-3">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar en captions…"
+          className="w-full rounded-md border bg-background pl-9 pr-8 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+        />
+        {search && (
+          <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-4">

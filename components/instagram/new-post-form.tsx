@@ -6,16 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Sparkles, Hash, RefreshCw, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  POST_TYPES,
-  POST_STATUSES,
-  TYPE_LABELS,
-  STATUS_LABELS,
-  type Post,
-  type PostStatus,
-  type PostType,
+  POST_TYPES, POST_STATUSES, TYPE_LABELS, STATUS_LABELS,
+  type Post, type PostStatus, type PostType,
 } from "@/lib/posts";
 
 export function NewPostForm({ onCreate }: { onCreate: (post: Post) => void }) {
@@ -25,11 +20,14 @@ export function NewPostForm({ onCreate }: { onCreate: (post: Post) => void }) {
   const [status, setStatus] = useState<PostStatus>("draft");
   const [scheduledDate, setScheduledDate] = useState("");
 
+  // Hashtags
+  const [hashtags, setHashtags] = useState<string[]>([]);
+  const [hashtagsLoading, setHashtagsLoading] = useState(false);
+  const [hashtagsCopied, setHashtagsCopied] = useState(false);
+
   const reset = () => {
-    setCaption("");
-    setType("photo");
-    setStatus("draft");
-    setScheduledDate("");
+    setCaption(""); setType("photo"); setStatus("draft");
+    setScheduledDate(""); setHashtags([]);
   };
 
   const submit = (e: React.FormEvent) => {
@@ -38,13 +36,41 @@ export function NewPostForm({ onCreate }: { onCreate: (post: Post) => void }) {
     onCreate({
       id: crypto.randomUUID(),
       caption: caption.trim(),
-      type,
-      status,
+      type, status,
       scheduledDate: scheduledDate || undefined,
       createdAt: new Date().toISOString().slice(0, 10),
     });
     reset();
     setOpen(false);
+  };
+
+  const generateHashtags = async () => {
+    if (!caption.trim() || hashtagsLoading) return;
+    setHashtagsLoading(true);
+    try {
+      const res = await fetch("/api/generate-hashtags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caption, type }),
+      });
+      const json = await res.json();
+      if (res.ok) setHashtags(json.hashtags ?? []);
+    } finally {
+      setHashtagsLoading(false);
+    }
+  };
+
+  const copyHashtags = () => {
+    const text = hashtags.map((h) => `#${h}`).join(" ");
+    navigator.clipboard.writeText(text).catch(() => {});
+    setHashtagsCopied(true);
+    setTimeout(() => setHashtagsCopied(false), 2000);
+  };
+
+  const appendHashtags = () => {
+    const text = "\n\n" + hashtags.map((h) => `#${h}`).join(" ");
+    setCaption((prev) => prev + text);
+    setHashtags([]);
   };
 
   if (!open) {
@@ -60,12 +86,13 @@ export function NewPostForm({ onCreate }: { onCreate: (post: Post) => void }) {
     <Card className="border-primary/40">
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-4">
         <CardTitle className="text-base">Nueva idea de post</CardTitle>
-        <Button variant="ghost" size="icon" onClick={() => setOpen(false)} aria-label="Cerrar">
+        <Button variant="ghost" size="icon" onClick={() => { reset(); setOpen(false); }} aria-label="Cerrar">
           <X className="h-4 w-4" />
         </Button>
       </CardHeader>
       <CardContent>
         <form onSubmit={submit} className="space-y-4">
+          {/* Caption */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium text-muted-foreground">Copy / Descripción</label>
@@ -84,25 +111,19 @@ export function NewPostForm({ onCreate }: { onCreate: (post: Post) => void }) {
               rows={4}
             />
           </div>
+
+          {/* Selects */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Tipo</label>
               <Select value={type} onChange={(e) => setType(e.target.value as PostType)}>
-                {POST_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {TYPE_LABELS[t]}
-                  </option>
-                ))}
+                {POST_TYPES.map((t) => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
               </Select>
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Estado</label>
               <Select value={status} onChange={(e) => setStatus(e.target.value as PostStatus)}>
-                {POST_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {STATUS_LABELS[s]}
-                  </option>
-                ))}
+                {POST_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
               </Select>
             </div>
             <div className="space-y-1.5">
@@ -110,10 +131,79 @@ export function NewPostForm({ onCreate }: { onCreate: (post: Post) => void }) {
               <Input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} />
             </div>
           </div>
+
+          {/* Hashtags */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <Hash className="h-3 w-3" /> Hashtags
+              </label>
+              <button
+                type="button"
+                onClick={generateHashtags}
+                disabled={!caption.trim() || hashtagsLoading}
+                className={cn(
+                  "inline-flex items-center gap-1.5 text-xs rounded-md border px-2.5 py-1 font-medium transition-colors",
+                  !caption.trim() || hashtagsLoading
+                    ? "border-border text-muted-foreground cursor-not-allowed opacity-60"
+                    : "border-primary/50 text-primary hover:bg-primary/10"
+                )}
+              >
+                {hashtagsLoading
+                  ? <><RefreshCw className="h-3 w-3 animate-spin" /> Generando…</>
+                  : <><Sparkles className="h-3 w-3" /> Generar con IA</>}
+              </button>
+            </div>
+
+            {hashtags.length > 0 && (
+              <div className="rounded-lg border bg-background/40 p-3 space-y-3">
+                <div className="flex flex-wrap gap-1.5">
+                  {hashtags.map((h) => (
+                    <button
+                      key={h}
+                      type="button"
+                      onClick={() => setHashtags((prev) => prev.filter((x) => x !== h))}
+                      className="inline-flex items-center gap-0.5 text-xs rounded-full border border-primary/30 bg-primary/10 text-primary px-2 py-0.5 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                      title="Clic para eliminar"
+                    >
+                      #{h} <X className="h-2.5 w-2.5" />
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 pt-1 border-t">
+                  <button
+                    type="button"
+                    onClick={copyHashtags}
+                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {hashtagsCopied ? <><Check className="h-3 w-3 text-emerald-400" /> Copiados</> : <><Copy className="h-3 w-3" /> Copiar</>}
+                  </button>
+                  <span className="text-muted-foreground">·</span>
+                  <button
+                    type="button"
+                    onClick={appendHashtags}
+                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Plus className="h-3 w-3" /> Agregar al caption
+                  </button>
+                  <span className="text-muted-foreground">·</span>
+                  <button
+                    type="button"
+                    onClick={generateHashtags}
+                    disabled={hashtagsLoading}
+                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className={cn("h-3 w-3", hashtagsLoading && "animate-spin")} /> Regenerar
+                  </button>
+                  <span className="text-muted-foreground ml-auto text-[10px]">{hashtags.length} hashtags</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
+            <Button type="button" variant="outline" onClick={() => { reset(); setOpen(false); }}>Cancelar</Button>
             <Button type="submit">Crear post</Button>
           </div>
         </form>

@@ -132,6 +132,18 @@ export default function AnalyticsPage() {
 
   const maxWeekly = Math.max(...weeklyData.map((w) => w.count), 1);
 
+  // Publicaciones por día de la semana
+  const DAYS_ES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  const byDayOfWeek = DAYS_ES.map((label, idx) => ({
+    label,
+    count: posts.filter((p) => {
+      if (p.status !== "published" || !p.scheduledDate) return false;
+      return new Date(p.scheduledDate + "T12:00:00").getDay() === idx;
+    }).length,
+  }));
+  const maxByDay = Math.max(...byDayOfWeek.map((d) => d.count), 1);
+  const bestDay = byDayOfWeek.reduce((a, b) => (b.count > a.count ? b : a), byDayOfWeek[0]);
+
   const generateInsights = async () => {
     if (posts.length === 0) return;
     setInsightsLoading(true);
@@ -294,6 +306,43 @@ export default function AnalyticsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Mejor día para publicar */}
+      {posts.filter((p) => p.status === "published").length > 0 && (
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Publicaciones por día de la semana
+              </CardTitle>
+              {bestDay.count > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  Mejor día: <span className="font-semibold text-primary">{bestDay.label}</span> ({bestDay.count} posts)
+                </span>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-end gap-2 h-24">
+              {byDayOfWeek.map((d) => (
+                <div key={d.label} className="flex-1 flex flex-col items-center gap-1">
+                  <span className="text-xs tabular-nums text-muted-foreground">{d.count || ""}</span>
+                  <div className="w-full rounded-sm bg-muted overflow-hidden" style={{ height: "64px" }}>
+                    <div
+                      className={cn(
+                        "w-full rounded-sm transition-all duration-500",
+                        d.label === bestDay.label && bestDay.count > 0 ? "bg-primary" : "bg-primary/40"
+                      )}
+                      style={{ height: `${(d.count / maxByDay) * 100}%`, marginTop: `${100 - (d.count / maxByDay) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">{d.label}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Distribución de posts */}
       <div className="grid gap-4 md:grid-cols-2 mb-6">
