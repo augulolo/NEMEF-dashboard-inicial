@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Plus, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   POST_TYPES,
   POST_STATUSES,
@@ -66,12 +67,21 @@ export function NewPostForm({ onCreate }: { onCreate: (post: Post) => void }) {
       <CardContent>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Copy / Descripción</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-muted-foreground">Copy / Descripción</label>
+              <span className={cn(
+                "text-xs tabular-nums",
+                caption.length > 2000 ? "text-red-400" : caption.length > 1800 ? "text-amber-400" : "text-muted-foreground"
+              )}>
+                {caption.length}/2200
+              </span>
+            </div>
             <Textarea
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               placeholder="¿De qué trata este post?"
               required
+              rows={4}
             />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

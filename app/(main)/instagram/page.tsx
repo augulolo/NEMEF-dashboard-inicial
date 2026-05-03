@@ -6,9 +6,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { NewPostForm } from "@/components/instagram/new-post-form";
 import { PostColumn } from "@/components/instagram/post-column";
 import { Calendar, FileText, CheckCircle2, Inbox, AlertCircle } from "lucide-react";
-import { POST_STATUSES, SEED_POSTS, type Post, type PostStatus } from "@/lib/posts";
+import { POST_STATUSES, POST_TYPES, TYPE_LABELS, SEED_POSTS, type Post, type PostStatus, type PostType } from "@/lib/posts";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/lib/toast";
+import { cn } from "@/lib/utils";
 
 const stats: { status: PostStatus; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { status: "scheduled", label: "Programados", icon: Calendar },
@@ -32,6 +33,7 @@ function fromDB(row: Record<string, unknown>): Post {
 export default function InstagramPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [typeFilter, setTypeFilter] = useState<PostType | "all">("all");
 
   // Carga inicial desde Supabase
   useEffect(() => {
@@ -63,13 +65,18 @@ export default function InstagramPage() {
       });
   }, []);
 
+  const filteredPosts = useMemo(
+    () => typeFilter === "all" ? posts : posts.filter((p) => p.type === typeFilter),
+    [posts, typeFilter]
+  );
+
   const grouped = useMemo(() => {
     const g: Record<PostStatus, Post[]> = { scheduled: [], draft: [], published: [], backlog: [] };
-    for (const p of posts) g[p.status].push(p);
+    for (const p of filteredPosts) g[p.status].push(p);
     g.scheduled.sort((a, b) => (a.scheduledDate ?? "").localeCompare(b.scheduledDate ?? ""));
     g.published.sort((a, b) => (b.scheduledDate ?? "").localeCompare(a.scheduledDate ?? ""));
     return g;
-  }, [posts]);
+  }, [filteredPosts]);
 
   const handleCreate = async (post: Post) => {
     const { data, error } = await supabase
@@ -165,6 +172,34 @@ export default function InstagramPage() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <span className="text-xs text-muted-foreground">Formato:</span>
+        <button
+          onClick={() => setTypeFilter("all")}
+          className={cn(
+            "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+            typeFilter === "all" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:bg-accent"
+          )}
+        >
+          Todos ({posts.length})
+        </button>
+        {POST_TYPES.map((t) => {
+          const count = posts.filter((p) => p.type === t).length;
+          return (
+            <button
+              key={t}
+              onClick={() => setTypeFilter(t)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                typeFilter === t ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:bg-accent"
+              )}
+            >
+              {TYPE_LABELS[t]} ({count})
+            </button>
+          );
+        })}
       </div>
 
       <div className="mb-6">
