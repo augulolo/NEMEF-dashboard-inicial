@@ -28,6 +28,25 @@ const TYPE_COLORS: Record<string, string> = {
   story:    "bg-amber-500",
 };
 
+function CompetitorAvatar({ competitor }: { competitor: Competitor }) {
+  const initials = (competitor.name || competitor.handle).slice(0, 2).toUpperCase();
+  if (competitor.profilePicUrl) {
+    return (
+      <img
+        src={competitor.profilePicUrl}
+        alt={competitor.name}
+        className="h-7 w-7 rounded-full object-cover shrink-0 border border-border"
+        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+      />
+    );
+  }
+  return (
+    <div className="h-7 w-7 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center shrink-0 border border-border">
+      {initials}
+    </div>
+  );
+}
+
 function BarRow({ label, count, total, color }: {
   label: string; count: number; total: number; color: string;
 }) {
@@ -81,7 +100,7 @@ export default function AnalyticsPage() {
       supabase.from("posts").select("*"),
       supabase.from("calendar_items").select("*"),
       supabase.from("competitors")
-        .select("id, handle, name, platform, region, followers, followers_history, engagement_rate, posts_per_week, recent_posts")
+        .select("id, handle, name, platform, region, followers, followers_history, engagement_rate, posts_per_week, recent_posts, profile_pic_url")
         .order("engagement_rate", { ascending: false })
         .limit(10),
     ]).then(([postsRes, calRes, compRes]) => {
@@ -108,6 +127,7 @@ export default function AnalyticsPage() {
           engagementRate: r.engagement_rate,
           postsPerWeek: r.posts_per_week,
           recentPosts: r.recent_posts ?? [],
+          profilePicUrl: r.profile_pic_url ?? "",
         })));
       }
       setLoading(false);
@@ -409,16 +429,19 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {competitors.map((c) => (
-                <div key={c.id}>
-                  <div className="flex justify-between text-xs mb-1.5">
-                    <span>{c.name}</span>
-                    <span className="text-muted-foreground tabular-nums">{c.engagementRate.toFixed(1)}%</span>
-                  </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-full transition-all duration-500"
-                      style={{ width: `${(c.engagementRate / maxEngagement) * 100}%` }}
-                    />
+                <div key={c.id} className="flex items-center gap-2.5">
+                  <CompetitorAvatar competitor={c} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between text-xs mb-1.5">
+                      <span className="truncate font-medium">{c.name || c.handle}</span>
+                      <span className="text-muted-foreground tabular-nums shrink-0 ml-2">{c.engagementRate.toFixed(1)}%</span>
+                    </div>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-500"
+                        style={{ width: `${(c.engagementRate / maxEngagement) * 100}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -441,10 +464,11 @@ export default function AnalyticsPage() {
                 .map((c) => {
                   const growth = growthPct(c.followersHistory);
                   return (
-                    <div key={c.id} className="flex items-center gap-3">
+                    <div key={c.id} className="flex items-center gap-2.5">
+                      <CompetitorAvatar competitor={c} />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="text-xs truncate">{c.name}</span>
+                          <span className="text-xs truncate font-medium">{c.name || c.handle}</span>
                           <span className="text-xs text-muted-foreground tabular-nums shrink-0">
                             {formatCount(c.followers)}
                           </span>
