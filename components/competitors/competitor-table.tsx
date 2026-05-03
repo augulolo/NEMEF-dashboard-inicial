@@ -7,19 +7,48 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
 import { Sparkline } from "./sparkline";
-import { ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight, Trash2, Pencil, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
+import {
+  ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight,
+  Trash2, Pencil, TrendingUp, TrendingDown, RefreshCw, ExternalLink,
+} from "lucide-react";
 import { PLATFORM_LABELS, PLATFORM_STYLES } from "@/lib/calendar";
 import { formatCount, growthPct, getAvatarUrl, REGION_LABELS, type Competitor } from "@/lib/competitors";
 import type { Platform } from "@/lib/calendar";
 
-function CompetitorAvatar({ name, platform, handle }: { name: string; platform: Platform; handle: string }) {
+function getProfileUrl(platform: Platform, handle: string): string {
+  const username = handle.replace(/^@/, "");
+  switch (platform) {
+    case "instagram": return `https://instagram.com/${username}`;
+    case "twitter":   return `https://x.com/${username}`;
+    case "youtube":   return `https://youtube.com/@${username}`;
+    case "tiktok":    return `https://tiktok.com/@${username}`;
+    default:          return `https://instagram.com/${username}`;
+  }
+}
+
+function CompetitorAvatar({
+  competitor,
+}: {
+  competitor: Competitor;
+}) {
+  const { name, platform, handle, profilePicUrl } = competitor;
   const [failed, setFailed] = useState(false);
   const initials = name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
-  // unavatar.io solo es confiable para Twitter — para el resto mostramos iniciales
-  const canLoadPhoto = platform === "twitter" && !failed;
+  // If we have a direct profilePicUrl from Apify, use it
+  if (profilePicUrl && profilePicUrl !== "" && !failed) {
+    return (
+      <img
+        src={profilePicUrl}
+        alt={name}
+        className="h-8 w-8 rounded-full object-cover bg-muted shrink-0"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
 
-  if (canLoadPhoto) {
+  // Fall back to unavatar.io for Twitter only
+  if (platform === "twitter" && !failed) {
     return (
       <img
         src={getAvatarUrl(platform, handle)}
@@ -212,6 +241,7 @@ export function CompetitorTable({
               const growth = growthPct(c.followersHistory);
               const isOpen = expanded === c.id;
               const style = PLATFORM_STYLES[c.platform];
+              const profileUrl = getProfileUrl(c.platform, c.handle);
               return (
                 <Fragment key={c.id}>
                   <tr
@@ -231,17 +261,25 @@ export function CompetitorTable({
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <CompetitorAvatar name={c.name} platform={c.platform} handle={c.handle} />
+                        <CompetitorAvatar competitor={c} />
                         <div>
                           <div className="flex items-center gap-1.5">
                             <span className="font-medium">{c.name}</span>
-                            {c.followersHistory.length <= 8 && (
+                            {c.followersHistory.length <= 8 && c.followers > 0 && (
                               <span className="text-[10px] border border-amber-500/40 text-amber-400 rounded px-1 py-0.5 leading-none">
                                 estimado
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-muted-foreground">{c.handle}</div>
+                          <a
+                            href={profileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            {c.handle}
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
                         </div>
                       </div>
                     </td>
@@ -315,6 +353,11 @@ export function CompetitorTable({
                     <tr className="border-b last:border-b-0 bg-background/30">
                       <td />
                       <td colSpan={columns.length + 1} className="px-4 py-4">
+                        {c.bio && (
+                          <p className="text-xs text-muted-foreground mb-3 italic">
+                            &ldquo;{c.bio.slice(0, 150)}{c.bio.length > 150 ? "…" : ""}&rdquo;
+                          </p>
+                        )}
                         <p className="text-xs uppercase tracking-wide text-muted-foreground mb-3">
                           Posts recientes
                         </p>

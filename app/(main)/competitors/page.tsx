@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { AddCompetitor } from "@/components/competitors/add-competitor";
 import { CompetitorTable } from "@/components/competitors/competitor-table";
-import { Users, TrendingUp, Zap, BarChart3, RefreshCw, Download } from "lucide-react";
+import { Users, TrendingUp, Zap, BarChart3, RefreshCw, Download, Plus } from "lucide-react";
 import { PLATFORMS, PLATFORM_LABELS, type Platform } from "@/lib/calendar";
 import {
-  SEED_COMPETITORS,
   formatCount,
   growthPct,
   REGION_LABELS,
@@ -28,7 +28,7 @@ function exportCSV(competitors: Competitor[]) {
   const csv = [headers, ...rows]
     .map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
     .join("\n");
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -45,22 +45,26 @@ function fromDB(row: Record<string, unknown>): Competitor {
     name: row.name as string,
     platform: row.platform as Competitor["platform"],
     region: row.region as Competitor["region"],
-    followers: row.followers as number,
+    followers: (row.followers as number) ?? 0,
     followersHistory: (row.followers_history as number[]) ?? [],
-    engagementRate: row.engagement_rate as number,
-    postsPerWeek: row.posts_per_week as number,
+    engagementRate: (row.engagement_rate as number) ?? 0,
+    postsPerWeek: (row.posts_per_week as number) ?? 0,
     recentPosts: (row.recent_posts as Competitor["recentPosts"]) ?? [],
+    profilePicUrl: (row.profile_pic_url as string) ?? "",
+    bio: (row.bio as string) ?? "",
   };
 }
 
 export default function CompetitorsPage() {
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncingAdd, setSyncingAdd] = useState(false);
   const [syncingPlatform, setSyncingPlatform] = useState<string | null>(null);
   const [syncResult, setSyncResult] = useState<{ updated: number; syncedAt: string; platform: string } | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [platformFilter, setPlatformFilter] = useState<Platform | "all">("all");
   const [regionFilter, setRegionFilter] = useState<Region | "all">("all");
+  const [showAddForm, setShowAddForm] = useState(false);
 
   // Carga inicial desde Supabase
   useEffect(() => {
@@ -71,42 +75,10 @@ export default function CompetitorsPage() {
       .then(({ data, error }) => {
         if (error) {
           console.error(error);
-          setCompetitors(SEED_COMPETITORS);
           setLoading(false);
           return;
         }
-
-        const existing = data ?? [];
-        setCompetitors(existing.map(fromDB));
-
-        // Insertar seeds que no estén en la DB (primera vez O seeds nuevos)
-        const existingHandles = new Set(existing.map((r) => r.handle as string));
-        const missing = SEED_COMPETITORS.filter((c) => !existingHandles.has(c.handle));
-        if (missing.length > 0) {
-          const rows = missing.map((c) => ({
-            handle: c.handle,
-            name: c.name,
-            platform: c.platform,
-            region: c.region,
-            followers: c.followers,
-            followers_history: c.followersHistory,
-            engagement_rate: c.engagementRate,
-            posts_per_week: c.postsPerWeek,
-            recent_posts: c.recentPosts,
-          }));
-          supabase
-            .from("competitors")
-            .insert(rows)
-            .select()
-            .then(({ data: newRows }) => {
-              if (newRows?.length) {
-                setCompetitors((prev) => [
-                  ...prev,
-                  ...newRows.map(fromDB),
-                ].sort((a, b) => b.followers - a.followers));
-              }
-            });
-        }
+        setCompetitors((data ?? []).map(fromDB));
         setLoading(false);
       });
   }, []);
@@ -144,7 +116,7 @@ export default function CompetitorsPage() {
       });
   };
 
-const handleAdd = async (c: Competitor) => {
+  const handleAdd = async (c: Omit<Competitor, "id">) => {
     const { data, error } = await supabase
       .from("competitors")
       .insert({
@@ -160,11 +132,50 @@ const handleAdd = async (c: Competitor) => {
       })
       .select()
       .single();
-    if (!error && data) {
-      setCompetitors((prev) => [fromDB(data), ...prev]);
-      toast("Creador agregado");
-    } else if (error) {
+
+    if (error || !data) {
       toast("Error al agregar creador", "error");
+      return;
+    }
+
+    const newCompetitor = fromDB(data);
+    setCompetitors((prev) => [newCompetitor, ...prev]);
+    setShowAddForm(false);
+
+    // Auto-sync after adding (only for supported platforms)
+    if (["instagram", "twitter", "youtube"].includes(c.platform)) {
+      setSyncingAdd(true);
+      toast("Sincronizando…");
+      try {
+        const res = await fetch("/api/sync-competitor", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: data.id, handle: c.handle, platform: c.platform }),
+        });
+        const json = await res.json();
+        if (res.ok) {
+          // Re-fetch this competitor from DB to get all updated fields
+          const { data: updated } = await supabase
+            .from("competitors")
+            .select("*")
+            .eq("id", data.id)
+            .single();
+          if (updated) {
+            setCompetitors((prev) =>
+              prev.map((comp) => (comp.id === data.id ? fromDB(updated) : comp))
+            );
+          }
+          toast(`✓ ${c.name || c.handle} sincronizado`);
+        } else {
+          toast(json.error ?? "No se pudo sincronizar automáticamente", "error");
+        }
+      } catch {
+        toast("No se pudo sincronizar automáticamente", "error");
+      } finally {
+        setSyncingAdd(false);
+      }
+    } else {
+      toast("Creador agregado");
     }
   };
 
@@ -207,7 +218,6 @@ const handleAdd = async (c: Competitor) => {
       if (!res.ok) {
         toast(json.error ?? "Error al sincronizar", "error");
       } else {
-        // Reload this competitor from DB so we get updated fields
         const { data } = await supabase.from("competitors").select("*").eq("id", id).single();
         if (data) {
           setCompetitors((prev) => prev.map((c) => (c.id === id ? fromDB(data) : c)));
@@ -303,7 +313,14 @@ const handleAdd = async (c: Competitor) => {
       </div>
 
       <div className="mb-6">
-        <AddCompetitor onAdd={handleAdd} />
+        {showAddForm ? (
+          <AddCompetitor onAdd={handleAdd} loading={syncingAdd} />
+        ) : (
+          <Button onClick={() => setShowAddForm(true)}>
+            <Plus className="h-4 w-4" />
+            Agregar creador
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -326,8 +343,29 @@ const handleAdd = async (c: Competitor) => {
 
       {loading ? (
         <div className="text-sm text-muted-foreground">Cargando creadores…</div>
+      ) : !loading && competitors.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="py-16 flex flex-col items-center justify-center gap-4 text-center">
+            <Users className="h-10 w-10 text-muted-foreground/40" />
+            <div>
+              <p className="font-medium text-foreground">Todavía no seguís a ningún creador.</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Agregá un creador para ver sus métricas reales.
+              </p>
+            </div>
+            <Button onClick={() => setShowAddForm(true)}>
+              <Plus className="h-4 w-4" />
+              Agregar creador
+            </Button>
+          </CardContent>
+        </Card>
       ) : (
-        <CompetitorTable competitors={filtered} onDelete={handleDelete} onEdit={handleEdit} onSync={handleSyncCompetitor} />
+        <CompetitorTable
+          competitors={filtered}
+          onDelete={handleDelete}
+          onEdit={handleEdit}
+          onSync={handleSyncCompetitor}
+        />
       )}
     </>
   );

@@ -20,12 +20,25 @@ interface ApifyIGProfile {
   username?: string;
   followersCount?: number;
   latestPosts?: ApifyPost[];
+  profilePicUrl?: string;
+  profilePicUrlHD?: string;
+  biography?: string;
 }
 
 interface ApifyTWProfile {
   userName?: string;
   followers?: number;
   followersCount?: number;
+  profilePicture?: string;
+  profileImageUrl?: string;
+  description?: string;
+}
+
+interface ApifyYTItem {
+  channelSubscriberCount?: number;
+  channelUrl?: string;
+  channelThumbnail?: string;
+  channelDescription?: string;
 }
 
 export async function POST(req: Request) {
@@ -69,6 +82,9 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: `No se encontró @${username} en Instagram` }, { status: 404 });
       }
 
+      const profilePicUrl = profiles[0].profilePicUrl ?? profiles[0].profilePicUrlHD ?? "";
+      const bio = profiles[0].biography ?? "";
+
       const posts = profile.latestPosts?.slice(0, 12) ?? [];
       const avgEng =
         posts.length > 0 && profile.followersCount > 0
@@ -97,10 +113,18 @@ export async function POST(req: Request) {
         engagement_rate: Math.round(avgEng * 10) / 10,
         posts_per_week: Math.round(postsPerWeek * 10) / 10,
         recent_posts: recentPosts,
+        profile_pic_url: profilePicUrl,
+        bio: bio,
       }).eq("id", id);
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ updated: true, followers: profile.followersCount, syncedAt: new Date().toISOString() });
+      return NextResponse.json({
+        updated: true,
+        followers: profile.followersCount,
+        profilePicUrl,
+        bio,
+        syncedAt: new Date().toISOString(),
+      });
     }
 
     if (platform === "twitter") {
@@ -119,14 +143,19 @@ export async function POST(req: Request) {
       const followers = profile?.followers ?? profile?.followersCount ?? 0;
       if (!followers) return NextResponse.json({ error: `No se encontró @${username} en Twitter` }, { status: 404 });
 
+      const profilePicUrl = profile?.profilePicture ?? profile?.profileImageUrl ?? "";
+      const bio = profile?.description ?? "";
+
       const newHistory = [...currentHistory, followers].slice(-12);
       const { error } = await supabase.from("competitors").update({
         followers,
         followers_history: newHistory,
+        profile_pic_url: profilePicUrl,
+        bio: bio,
       }).eq("id", id);
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ updated: true, followers, syncedAt: new Date().toISOString() });
+      return NextResponse.json({ updated: true, followers, profilePicUrl, bio, syncedAt: new Date().toISOString() });
     }
 
     if (platform === "youtube") {
@@ -141,18 +170,23 @@ export async function POST(req: Request) {
       );
       if (!res.ok) return NextResponse.json({ error: `Apify error ${res.status}` }, { status: 502 });
 
-      const items: { channelSubscriberCount?: number; channelUrl?: string }[] = await res.json();
+      const items: ApifyYTItem[] = await res.json();
       const subscriberCount = items[0]?.channelSubscriberCount ?? 0;
       if (!subscriberCount) return NextResponse.json({ error: `No se encontró @${username} en YouTube` }, { status: 404 });
+
+      const profilePicUrl = items[0]?.channelThumbnail ?? "";
+      const bio = items[0]?.channelDescription ?? "";
 
       const newHistory = [...currentHistory, subscriberCount].slice(-12);
       const { error } = await supabase.from("competitors").update({
         followers: subscriberCount,
         followers_history: newHistory,
+        profile_pic_url: profilePicUrl,
+        bio: bio,
       }).eq("id", id);
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ updated: true, followers: subscriberCount, syncedAt: new Date().toISOString() });
+      return NextResponse.json({ updated: true, followers: subscriberCount, profilePicUrl, bio, syncedAt: new Date().toISOString() });
     }
 
     return NextResponse.json({ error: `Plataforma '${platform}' no soportada` }, { status: 400 });

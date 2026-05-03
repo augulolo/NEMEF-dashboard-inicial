@@ -5,32 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Plus, X } from "lucide-react";
+import { Plus, X, RefreshCw } from "lucide-react";
 import { PLATFORMS, PLATFORM_LABELS, type Platform } from "@/lib/calendar";
 import { REGION_LABELS, type Competitor, type Region } from "@/lib/competitors";
 
-function mockScrape(): Pick<
-  Competitor,
-  "followers" | "followersHistory" | "engagementRate" | "postsPerWeek" | "recentPosts"
-> {
-  const base = Math.floor(5000 + Math.random() * 200000);
-  const drift = () => Math.floor((Math.random() - 0.3) * base * 0.03);
-  const history: number[] = [];
-  let cur = base - 8 * Math.floor(base * 0.01);
-  for (let i = 0; i < 8; i++) {
-    cur += drift();
-    history.push(Math.max(0, cur));
-  }
-  return {
-    followers: history[history.length - 1],
-    followersHistory: history,
-    engagementRate: +(1 + Math.random() * 7).toFixed(1),
-    postsPerWeek: +(0.5 + Math.random() * 15).toFixed(1),
-    recentPosts: [],
-  };
-}
-
-export function AddCompetitor({ onAdd }: { onAdd: (c: Competitor) => void }) {
+export function AddCompetitor({
+  onAdd,
+  loading,
+}: {
+  onAdd: (c: Omit<Competitor, "id">) => void;
+  loading?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [handle, setHandle] = useState("");
   const [name, setName] = useState("");
@@ -42,12 +27,15 @@ export function AddCompetitor({ onAdd }: { onAdd: (c: Competitor) => void }) {
     const h = handle.trim();
     if (!h) return;
     onAdd({
-      id: crypto.randomUUID(),
       handle: h.startsWith("@") ? h : `@${h}`,
       name: name.trim() || h,
       platform,
       region,
-      ...mockScrape(),
+      followers: 0,
+      followersHistory: [],
+      engagementRate: 0,
+      postsPerWeek: 0,
+      recentPosts: [],
     });
     setHandle("");
     setName("");
@@ -74,21 +62,31 @@ export function AddCompetitor({ onAdd }: { onAdd: (c: Competitor) => void }) {
       <CardContent>
         <form onSubmit={submit} className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Usuario / Handle</label>
+            <label className="text-xs font-medium text-muted-foreground">Handle (@usuario)</label>
             <Input
               value={handle}
               onChange={(e) => setHandle(e.target.value)}
               placeholder="@usuario"
               required
+              disabled={loading}
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Nombre</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre del creador" />
+            <label className="text-xs font-medium text-muted-foreground">Nombre (opcional)</label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nombre del creador"
+              disabled={loading}
+            />
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Plataforma</label>
-            <Select value={platform} onChange={(e) => setPlatform(e.target.value as Platform)}>
+            <Select
+              value={platform}
+              onChange={(e) => setPlatform(e.target.value as Platform)}
+              disabled={loading}
+            >
               {PLATFORMS.map((p) => (
                 <option key={p} value={p}>
                   {PLATFORM_LABELS[p]}
@@ -98,20 +96,36 @@ export function AddCompetitor({ onAdd }: { onAdd: (c: Competitor) => void }) {
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Región</label>
-            <Select value={region} onChange={(e) => setRegion(e.target.value as Region)}>
+            <Select
+              value={region}
+              onChange={(e) => setRegion(e.target.value as Region)}
+              disabled={loading}
+            >
               <option value="argentina">{REGION_LABELS.argentina}</option>
               <option value="mundo">{REGION_LABELS.mundo}</option>
             </Select>
           </div>
           <div className="md:col-span-2 flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
               Cancelar
             </Button>
-            <Button type="submit">Agregar</Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? (
+                <>
+                  <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  Sincronizando…
+                </>
+              ) : (
+                <>
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                  Agregar y sincronizar
+                </>
+              )}
+            </Button>
           </div>
         </form>
         <p className="text-[11px] text-muted-foreground mt-3">
-          Los datos iniciales son simulados. Conectá un scraper o API pública para datos reales.
+          Los datos reales se sincronizarán automáticamente al agregar.
         </p>
       </CardContent>
     </Card>
