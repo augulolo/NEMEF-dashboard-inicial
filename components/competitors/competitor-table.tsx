@@ -15,20 +15,38 @@ import type { Platform } from "@/lib/calendar";
 function CompetitorAvatar({ name, platform, handle }: { name: string; platform: Platform; handle: string }) {
   const [failed, setFailed] = useState(false);
   const initials = name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-  if (failed) {
+
+  // unavatar.io solo es confiable para Twitter — para el resto mostramos iniciales
+  const canLoadPhoto = platform === "twitter" && !failed;
+
+  if (canLoadPhoto) {
     return (
-      <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold shrink-0 select-none">
-        {initials}
-      </div>
+      <img
+        src={getAvatarUrl(platform, handle)}
+        alt={name}
+        className="h-8 w-8 rounded-full object-cover bg-muted shrink-0"
+        onError={() => setFailed(true)}
+      />
     );
   }
+
+  // Color determinístico por handle para que cada creador tenga su color
+  const colors = [
+    "bg-pink-500/20 text-pink-400",
+    "bg-blue-500/20 text-blue-400",
+    "bg-emerald-500/20 text-emerald-400",
+    "bg-amber-500/20 text-amber-400",
+    "bg-purple-500/20 text-purple-400",
+    "bg-red-500/20 text-red-400",
+    "bg-cyan-500/20 text-cyan-400",
+    "bg-orange-500/20 text-orange-400",
+  ];
+  const colorIdx = handle.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % colors.length;
+
   return (
-    <img
-      src={getAvatarUrl(platform, handle)}
-      alt={name}
-      className="h-8 w-8 rounded-full object-cover bg-muted shrink-0"
-      onError={() => setFailed(true)}
-    />
+    <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 select-none ${colors[colorIdx]}`}>
+      {initials}
+    </div>
   );
 }
 

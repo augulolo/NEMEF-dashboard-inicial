@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, Calendar, Instagram, Newspaper, Target, LayoutDashboard, LogOut, Sun, Moon } from "lucide-react";
+import { BarChart3, Calendar, Instagram, Newspaper, Target, LayoutDashboard, LogOut, Sun, Moon, Lightbulb } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
 import { createClient } from "@/lib/supabase";
@@ -15,6 +15,7 @@ const nav = [
   { href: "/calendar", label: "Calendario", icon: Calendar },
   { href: "/competitors", label: "Creadores", icon: Target },
   { href: "/news", label: "Noticias", icon: Newspaper },
+  { href: "/ideas", label: "Ideas con IA", icon: Lightbulb },
 ];
 
 export function Sidebar({ onClose }: { onClose?: () => void }) {

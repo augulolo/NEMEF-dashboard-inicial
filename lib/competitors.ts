@@ -56,7 +56,7 @@ export const SEED_COMPETITORS: Competitor[] = [
   // ——— Argentina ———
   {
     id: "ar1",
-    handle: "@CarlosMaslatn1",
+    handle: "@CarlosMaslaton1",
     name: "Carlos Maslatón",
     platform: "twitter",
     region: "argentina",
@@ -252,7 +252,7 @@ export const SEED_COMPETITORS: Competitor[] = [
     ],
   },
   {
-    id: "ar16", handle: "@arielsbdar", name: "Ariel Sbdar",
+    id: "ar16", handle: "@ariel_sbdar", name: "Ariel Sbdar",
     platform: "instagram", region: "argentina",
     followers: 110000, followersHistory: hist(95000, 110000), engagementRate: 4.9, postsPerWeek: 5,
     recentPosts: [
@@ -288,7 +288,7 @@ export const SEED_COMPETITORS: Competitor[] = [
     ],
   },
   {
-    id: "ar20", handle: "@cocosinvest", name: "Cocos Capital",
+    id: "ar20", handle: "@cocoscapital", name: "Cocos Capital",
     platform: "instagram", region: "argentina",
     followers: 195000, followersHistory: hist(168000, 195000), engagementRate: 4.1, postsPerWeek: 8,
     recentPosts: [
