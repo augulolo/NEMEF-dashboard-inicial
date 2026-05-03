@@ -7,6 +7,7 @@ import {
   Flame, Instagram, Lightbulb, Newspaper, Sparkles,
 } from "lucide-react";
 import Link from "next/link";
+import { OwnAccountWidget } from "@/components/home/own-account-widget";
 
 export default async function Home() {
   const supabase = await createServerSupabaseClient();
@@ -209,6 +210,11 @@ export default async function Home() {
             )}
           </CardContent>
         </Card>
+      </div>
+
+      {/* Widget de mis cuentas NEMEF */}
+      <div className="mb-6">
+        <OwnAccountWidget />
       </div>
 
       {/* Acciones rápidas */}
