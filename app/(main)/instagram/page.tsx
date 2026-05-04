@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { NewPostForm } from "@/components/instagram/new-post-form";
 import { PostColumn } from "@/components/instagram/post-column";
 import { PostList } from "@/components/instagram/post-list";
-import { Calendar, FileText, CheckCircle2, Inbox, AlertCircle, Search, X, LayoutGrid, List } from "lucide-react";
+import { Calendar, FileText, CheckCircle2, Inbox, AlertCircle, Search, X, LayoutGrid, List, Download } from "lucide-react";
 import { POST_STATUSES, POST_TYPES, TYPE_LABELS, SEED_POSTS, type Post, type PostStatus, type PostType } from "@/lib/posts";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/lib/toast";
@@ -131,6 +131,26 @@ export default function InstagramPage() {
     }
   };
 
+  const handleExportCSV = () => {
+    const headers = ["Estado", "Tipo", "Caption", "Fecha programada", "Creado"];
+    const { STATUS_LABELS: SL, TYPE_LABELS: TL } = { STATUS_LABELS: { scheduled: "Programado", draft: "Borrador", published: "Publicado", backlog: "Idea" }, TYPE_LABELS: { reel: "Reel", carousel: "Carrusel", photo: "Foto", story: "Historia" } };
+    const rows = filteredPosts.map((p) => [
+      SL[p.status] ?? p.status,
+      TL[p.type as keyof typeof TL] ?? p.type,
+      `"${(p.caption ?? "").replace(/"/g, '""')}"`,
+      p.scheduledDate ?? "",
+      p.createdAt ?? "",
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `nemef-posts-${new Date().toLocaleDateString("en-CA")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const TODAY = new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
   const overdue = posts.filter(
     (p) => p.status === "scheduled" && p.scheduledDate && p.scheduledDate < TODAY
@@ -226,22 +246,35 @@ export default function InstagramPage() {
         })}
         </div>
 
-        {/* Toggle vista */}
-        <div className="flex items-center gap-1 rounded-md border p-1 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Exportar CSV */}
           <button
-            onClick={() => setView("kanban")}
-            className={cn("p-1.5 rounded transition-colors", view === "kanban" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
-            title="Vista Kanban"
+            onClick={handleExportCSV}
+            disabled={filteredPosts.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Exportar posts como CSV"
           >
-            <LayoutGrid className="h-3.5 w-3.5" />
+            <Download className="h-3.5 w-3.5" />
+            CSV
           </button>
-          <button
-            onClick={() => setView("list")}
-            className={cn("p-1.5 rounded transition-colors", view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
-            title="Vista Lista"
-          >
-            <List className="h-3.5 w-3.5" />
-          </button>
+
+          {/* Toggle vista */}
+          <div className="flex items-center gap-1 rounded-md border p-1">
+            <button
+              onClick={() => setView("kanban")}
+              className={cn("p-1.5 rounded transition-colors", view === "kanban" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+              title="Vista Kanban"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => setView("list")}
+              className={cn("p-1.5 rounded transition-colors", view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+              title="Vista Lista"
+            >
+              <List className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 

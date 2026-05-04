@@ -229,6 +229,25 @@ export default function CompetitorsPage() {
     }
   };
 
+  const handleSyncAll = async () => {
+    setSyncError(null);
+    setSyncResult(null);
+    let totalUpdated = 0;
+    for (const platform of ["instagram", "youtube", "twitter"] as const) {
+      setSyncingPlatform(platform);
+      try {
+        const res = await fetch(`/api/sync-${platform}`, { method: "POST" });
+        const json = await res.json();
+        if (res.ok) totalUpdated += json.updated ?? 0;
+      } catch { /* continuar con los demás */ }
+    }
+    setSyncingPlatform(null);
+    const syncedAt = new Date().toISOString();
+    setSyncResult({ updated: totalUpdated, syncedAt, platform: "todo" });
+    toast(`${totalUpdated} perfil${totalUpdated !== 1 ? "es" : ""} actualizados`);
+    reloadFromDB();
+  };
+
   const handleSyncWithToast = async (platform: "instagram" | "youtube" | "twitter") => {
     setSyncingPlatform(platform);
     setSyncError(null);
@@ -260,32 +279,45 @@ export default function CompetitorsPage() {
           description="Seguí referentes de finanzas de Argentina y del mundo con métricas de engagement y crecimiento."
         />
         <div className="flex flex-col items-end gap-2 shrink-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleSyncAll}
+              disabled={syncingPlatform !== null}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
+                syncingPlatform !== null
+                  ? "border-border text-muted-foreground cursor-not-allowed opacity-60"
+                  : "border-emerald-500/60 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20"
+              )}
+            >
+              <RefreshCw className={cn("h-3 w-3", syncingPlatform !== null && "animate-spin")} />
+              {syncingPlatform ? `Sincronizando ${syncingPlatform}…` : "Sincronizar todo"}
+            </button>
             {(["instagram", "youtube", "twitter"] as const).map((p) => {
               const isSyncing = syncingPlatform === p;
-              const labels: Record<string, string> = { instagram: "Instagram", youtube: "YouTube", twitter: "Twitter / X" };
+              const labels: Record<string, string> = { instagram: "IG", youtube: "YT", twitter: "X" };
               return (
                 <button
                   key={p}
                   onClick={() => handleSyncWithToast(p)}
                   disabled={syncingPlatform !== null}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
+                    "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
                     syncingPlatform !== null
                       ? "border-border text-muted-foreground cursor-not-allowed opacity-60"
-                      : "border-primary text-primary hover:bg-primary/10"
+                      : "border-border text-muted-foreground hover:border-primary hover:text-primary"
                   )}
                 >
                   <RefreshCw className={cn("h-3 w-3", isSyncing && "animate-spin")} />
-                  {isSyncing ? "Sincronizando…" : labels[p]}
+                  {isSyncing ? "…" : labels[p]}
                 </button>
               );
             })}
           </div>
           {syncResult && !syncingPlatform && (
             <p className="text-xs text-muted-foreground">
-              ✓ {syncResult.updated} perfil{syncResult.updated !== 1 ? "es" : ""} de{" "}
-              {syncResult.platform} actualizados ·{" "}
+              ✓ {syncResult.updated} perfil{syncResult.updated !== 1 ? "es" : ""}{" "}
+              {syncResult.platform !== "todo" ? `de ${syncResult.platform}` : "actualizados en total"} ·{" "}
               {new Date(syncResult.syncedAt).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
             </p>
           )}

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
 import { Sparkline } from "./sparkline";
+import { CompetitorAvatar } from "./competitor-avatar";
 import {
   ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight,
   Trash2, Pencil, TrendingUp, TrendingDown, RefreshCw, ExternalLink, Sparkles,
@@ -20,7 +21,7 @@ interface AnalysisResult {
   verdict: string;
 }
 import { PLATFORM_LABELS, PLATFORM_STYLES } from "@/lib/calendar";
-import { formatCount, growthPct, getAvatarUrl, REGION_LABELS, type Competitor } from "@/lib/competitors";
+import { formatCount, growthPct, REGION_LABELS, type Competitor } from "@/lib/competitors";
 import type { Platform } from "@/lib/calendar";
 
 function getProfileUrl(platform: Platform, handle: string): string {
@@ -32,59 +33,6 @@ function getProfileUrl(platform: Platform, handle: string): string {
     case "tiktok":    return `https://tiktok.com/@${username}`;
     default:          return `https://instagram.com/${username}`;
   }
-}
-
-function CompetitorAvatar({
-  competitor,
-}: {
-  competitor: Competitor;
-}) {
-  const { name, platform, handle, profilePicUrl } = competitor;
-  const [failed, setFailed] = useState(false);
-  const initials = name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-
-  // If we have a direct profilePicUrl from Apify, use it
-  if (profilePicUrl && profilePicUrl !== "" && !failed) {
-    return (
-      <img
-        src={profilePicUrl}
-        alt={name}
-        className="h-8 w-8 rounded-full object-cover bg-muted shrink-0"
-        onError={() => setFailed(true)}
-      />
-    );
-  }
-
-  // Fall back to unavatar.io for Twitter only
-  if (platform === "twitter" && !failed) {
-    return (
-      <img
-        src={getAvatarUrl(platform, handle)}
-        alt={name}
-        className="h-8 w-8 rounded-full object-cover bg-muted shrink-0"
-        onError={() => setFailed(true)}
-      />
-    );
-  }
-
-  // Color determinístico por handle para que cada creador tenga su color
-  const colors = [
-    "bg-pink-500/20 text-pink-400",
-    "bg-blue-500/20 text-blue-400",
-    "bg-emerald-500/20 text-emerald-400",
-    "bg-amber-500/20 text-amber-400",
-    "bg-purple-500/20 text-purple-400",
-    "bg-red-500/20 text-red-400",
-    "bg-cyan-500/20 text-cyan-400",
-    "bg-orange-500/20 text-orange-400",
-  ];
-  const colorIdx = handle.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % colors.length;
-
-  return (
-    <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 select-none ${colors[colorIdx]}`}>
-      {initials}
-    </div>
-  );
 }
 
 type SortKey = "name" | "platform" | "region" | "followers" | "engagementRate" | "postsPerWeek" | "growth";

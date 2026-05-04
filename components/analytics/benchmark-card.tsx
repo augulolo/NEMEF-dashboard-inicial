@@ -14,24 +14,37 @@ interface MetaStatus {
   followers?: number;
 }
 
+interface MetricsStats {
+  avgEngagement: number;
+  avgLikes: number;
+  avgComments: number;
+  avgReach: number;
+}
+
 interface BenchmarkCardProps {
   competitors: Competitor[];
 }
 
-const MY_FOLLOWERS = 369;
-// engagement rate aproximada conocida
-const MY_ENGAGEMENT = 0.36;
+const MY_FOLLOWERS_FALLBACK = 369;
+const MY_ENGAGEMENT_FALLBACK = 0.36;
 
 export function BenchmarkCard({ competitors }: BenchmarkCardProps) {
   const [meta, setMeta] = useState<MetaStatus | null>(null);
+  const [metrics, setMetrics] = useState<MetricsStats | null>(null);
   const [metaLoading, setMetaLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/meta-status")
-      .then((r) => r.json())
-      .then((d) => setMeta(d))
-      .catch(() => setMeta({ configured: false }))
-      .finally(() => setMetaLoading(false));
+    // Fetch meta-status and instagram-metrics in parallel
+    Promise.all([
+      fetch("/api/meta-status").then((r) => r.json()).catch(() => ({ configured: false })),
+      fetch("/api/instagram-metrics").then((r) => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([metaData, metricsData]) => {
+      setMeta(metaData);
+      if (metricsData?.stats) setMetrics(metricsData.stats);
+      if (metricsData?.profile?.followers && metaData) {
+        setMeta({ ...metaData, followers: metricsData.profile.followers });
+      }
+    }).finally(() => setMetaLoading(false));
   }, []);
 
   if (competitors.length === 0 && !metaLoading) return null;
@@ -57,8 +70,8 @@ export function BenchmarkCard({ competitors }: BenchmarkCardProps) {
       ? competitors.reduce((a, b) => (b.followers > a.followers ? b : a), competitors[0])
       : null;
 
-  const myFollowers = meta?.valid && meta.followers ? meta.followers : MY_FOLLOWERS;
-  const myEngagement = MY_ENGAGEMENT;
+  const myFollowers = meta?.followers ?? MY_FOLLOWERS_FALLBACK;
+  const myEngagement = metrics?.avgEngagement ?? MY_ENGAGEMENT_FALLBACK;
 
   const rows = [
     {
@@ -132,14 +145,14 @@ export function BenchmarkCard({ competitors }: BenchmarkCardProps) {
                 ))}
               </tbody>
             </table>
-            {meta?.valid && meta.username && (
+            {metrics && meta?.username && (
               <p className="text-[11px] text-muted-foreground mt-3">
-                Datos de @{meta.username} via Meta Graph API
+                Datos reales de @{meta.username} · {metrics.avgLikes} likes prom · {metrics.avgComments} comentarios prom · alcance {formatCount(metrics.avgReach)} prom
               </p>
             )}
-            {(!meta?.valid) && (
+            {!metrics && (
               <p className="text-[11px] text-muted-foreground mt-3">
-                Engagement calculado con datos conocidos (369 seguidores). Conectá Meta API para datos en tiempo real.
+                Engagement calculado con datos conocidos. Conectá Meta API para datos en tiempo real.
               </p>
             )}
           </div>

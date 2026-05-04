@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import {
   Image as ImageIcon, Film, Circle, Layers, Calendar,
-  Trash2, Pencil, Check, X, Copy, CheckCircle2, Repeat2, Star, RefreshCw,
+  Trash2, Pencil, Check, X, Copy, CheckCircle2, Repeat2, Star, RefreshCw, Sparkles,
 } from "lucide-react";
 import type { Post, PostType, PostStatus } from "@/lib/posts";
 import { TYPE_LABELS, STATUS_LABELS, POST_TYPES, POST_STATUSES } from "@/lib/posts";
@@ -43,6 +43,7 @@ export function PostCard({
   const [repurposing, setRepurposing] = useState(false);
   const [score, setScore] = useState<{ value: number; tip: string } | null>(null);
   const [scoring, setScoring] = useState(false);
+  const [improving, setImproving] = useState(false);
 
   const handleScore = async () => {
     if (scoring) return;
@@ -60,6 +61,25 @@ export function PostCard({
       console.error("Error al puntuar:", e);
     } finally {
       setScoring(false);
+    }
+  };
+
+  const handleImprove = async () => {
+    if (improving || !caption.trim()) return;
+    setImproving(true);
+    try {
+      const res = await fetch("/api/improve-caption", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caption, type }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.improved) setCaption(data.improved);
+    } catch (e) {
+      console.error("Error al mejorar caption:", e);
+    } finally {
+      setImproving(false);
     }
   };
 
@@ -109,6 +129,18 @@ export function PostCard({
             rows={3}
             autoFocus
           />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleImprove}
+            disabled={improving || !caption.trim()}
+            className="w-full h-8 gap-2 text-xs border-primary/40 text-primary hover:bg-primary/10"
+          >
+            {improving
+              ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Mejorando con IA…</>
+              : <><Sparkles className="h-3.5 w-3.5" /> Mejorar caption con IA</>
+            }
+          </Button>
           <div className="grid grid-cols-2 gap-2">
             <Select value={type} onChange={(e) => setType(e.target.value as PostType)}>
               {POST_TYPES.map((t) => (

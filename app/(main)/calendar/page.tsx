@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { PlatformFilter } from "@/components/calendar/platform-filter";
 import { MonthGrid } from "@/components/calendar/month-grid";
 import { DayDetail } from "@/components/calendar/day-detail";
@@ -130,6 +130,40 @@ export default function CalendarPage() {
 
   const dayItems = filtered.filter((i) => i.date === selectedDay);
 
+  const exportICS = () => {
+    const escape = (s: string) => s.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, "\\n");
+    const lines = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//NEMEF//Dashboard//ES",
+      "CALSCALE:GREGORIAN",
+    ];
+    for (const item of filtered) {
+      const dateStr = item.date.replace(/-/g, "");
+      const nextDay = new Date(item.date + "T12:00:00");
+      nextDay.setDate(nextDay.getDate() + 1);
+      const endStr = nextDay.toLocaleDateString("en-CA").replace(/-/g, "");
+      lines.push(
+        "BEGIN:VEVENT",
+        `UID:${item.id}@nemef`,
+        `DTSTART;VALUE=DATE:${dateStr}`,
+        `DTEND;VALUE=DATE:${endStr}`,
+        `SUMMARY:${escape(`[${item.platform.toUpperCase()}] ${item.title}`)}`,
+        `STATUS:${item.status === "published" ? "COMPLETED" : "TENTATIVE"}`,
+        "END:VEVENT",
+      );
+    }
+    lines.push("END:VCALENDAR");
+    const ics = lines.join("\r\n");
+    const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `nemef-calendario-${cursor.year}-${String(cursor.month + 1).padStart(2, "0")}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleAddItem = async (item: Omit<CalendarItem, "id">) => {
     const { data, error } = await supabase
       .from("calendar_items")
@@ -167,21 +201,32 @@ export default function CalendarPage() {
           </Button>
         </div>
 
-        <div className="flex items-center gap-1 rounded-md border p-1">
-          {STATUSES.map((s) => (
-            <button
-              key={s.key}
-              onClick={() => setStatusFilter(s.key)}
-              className={cn(
-                "px-3 py-1 text-xs rounded transition-colors",
-                statusFilter === s.key
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {s.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 rounded-md border p-1">
+            {STATUSES.map((s) => (
+              <button
+                key={s.key}
+                onClick={() => setStatusFilter(s.key)}
+                className={cn(
+                  "px-3 py-1 text-xs rounded transition-colors",
+                  statusFilter === s.key
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={exportICS}
+            disabled={filtered.length === 0}
+            title="Exportar como iCal (.ics) para Google Calendar o Apple Calendar"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Download className="h-3.5 w-3.5" />
+            .ics
+          </button>
         </div>
       </div>
 

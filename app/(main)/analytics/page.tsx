@@ -14,6 +14,7 @@ import type { Competitor } from "@/lib/competitors";
 import { Sparkline } from "@/components/competitors/sparkline";
 import { MyAccount } from "@/components/analytics/my-account";
 import { BenchmarkCard } from "@/components/analytics/benchmark-card";
+import { CompetitorAvatar } from "@/components/competitors/competitor-avatar";
 
 const STATUS_COLORS: Record<string, string> = {
   published: "bg-emerald-500",
@@ -29,24 +30,6 @@ const TYPE_COLORS: Record<string, string> = {
   story:    "bg-amber-500",
 };
 
-function CompetitorAvatar({ competitor }: { competitor: Competitor }) {
-  const initials = (competitor.name || competitor.handle).slice(0, 2).toUpperCase();
-  if (competitor.profilePicUrl) {
-    return (
-      <img
-        src={competitor.profilePicUrl}
-        alt={competitor.name}
-        className="h-7 w-7 rounded-full object-cover shrink-0 border border-border"
-        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-      />
-    );
-  }
-  return (
-    <div className="h-7 w-7 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center shrink-0 border border-border">
-      {initials}
-    </div>
-  );
-}
 
 function BarRow({ label, count, total, color }: {
   label: string; count: number; total: number; color: string;

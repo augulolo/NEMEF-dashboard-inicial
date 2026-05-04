@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Clock } from "lucide-react";
+import { Plus, Trash2, Clock, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
+import { supabase } from "@/lib/supabase";
 
 type Note = {
   id: string;
@@ -114,6 +115,18 @@ export default function NotasPage() {
     toast("Nota eliminada");
   };
 
+  const handleConvertToPost = async () => {
+    if (!content.trim()) return;
+    const { error } = await supabase.from("posts").insert({
+      caption: content.trim(),
+      type: "photo",
+      status: "draft",
+      scheduled_date: null,
+    });
+    if (!error) toast("Borrador creado en Gestor de Instagram ✓");
+    else toast("Error al crear borrador", "error");
+  };
+
   const preview = (c: string) => {
     const first = c.trim().split("\n")[0] || "Nota vacía";
     return first.slice(0, 40) + (first.length > 40 ? "…" : "");
@@ -186,15 +199,26 @@ export default function NotasPage() {
                 className="flex-1 w-full resize-none bg-transparent p-5 text-sm leading-relaxed outline-none placeholder:text-muted-foreground min-h-[400px]"
                 autoFocus
               />
-              <div className="border-t px-5 py-2 flex items-center justify-between">
+              <div className="border-t px-5 py-2 flex items-center justify-between gap-3">
                 <span className="text-xs text-muted-foreground">
                   {content.length} caracteres · {content.trim().split(/\s+/).filter(Boolean).length} palabras
                 </span>
-                {activeNote && (
-                  <span className="text-xs text-muted-foreground">
-                    Guardado {timeAgo(activeNote.updatedAt)}
-                  </span>
-                )}
+                <div className="flex items-center gap-3">
+                  {activeNote && (
+                    <span className="text-xs text-muted-foreground">
+                      Guardado {timeAgo(activeNote.updatedAt)}
+                    </span>
+                  )}
+                  <button
+                    onClick={handleConvertToPost}
+                    disabled={!content.trim()}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Guardar como borrador en Gestor de Instagram"
+                  >
+                    <Send className="h-3 w-3" />
+                    Convertir a borrador
+                  </button>
+                </div>
               </div>
             </div>
           )}
