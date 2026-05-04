@@ -209,4 +209,81 @@ Guardá esto para cuando lo necesites 📌
 
 ¿En qué paso estás vos? Comentá el número 👇`,
   },
+  {
+    id: "numero-impactante",
+    label: "Número impactante",
+    emoji: "🔢",
+    type: "reel",
+    description: "Un dato sorprendente como gancho de apertura",
+    caption: `🔢 [NÚMERO IMPACTANTE]
+
+Eso es lo que perdés si [situación financiera negativa] 😱
+
+Dejame explicarte por qué este número importa 👇
+
+📍 El contexto:
+[Explicá de dónde sale el número]
+
+💥 Lo que significa para vos:
+[Impacto directo en la economía personal del espectador]
+
+✅ Qué podés hacer para revertirlo:
+1. [Acción 1]
+2. [Acción 2]
+3. [Acción 3]
+
+El momento de actuar es hoy, no mañana.
+
+¿Esto te abrió los ojos? Comentá 👇`,
+  },
+  {
+    id: "antes-despues",
+    label: "Antes y después",
+    emoji: "🔄",
+    type: "carousel",
+    description: "Mostrar la transformación financiera posible",
+    caption: `🔄 ANTES vs DESPUÉS de aprender finanzas
+
+¿En cuál te reconocés? 👇
+
+❌ ANTES:
+• [Hábito/creencia negativa 1]
+• [Hábito/creencia negativa 2]
+• [Hábito/creencia negativa 3]
+• Resultado: [Consecuencia negativa]
+
+✅ DESPUÉS:
+• [Hábito/creencia positiva 1]
+• [Hábito/creencia positiva 2]
+• [Hábito/creencia positiva 3]
+• Resultado: [Beneficio concreto]
+
+🎯 El cambio no fue de la noche a la mañana.
+Fue una decisión a la vez.
+
+¿Estás en el "antes" o en el "después"? 💬`,
+  },
+  {
+    id: "pregunta-abierta",
+    label: "Post de engagement (pregunta)",
+    emoji: "❓",
+    type: "photo",
+    description: "Post diseñado para maximizar comentarios",
+    caption: `❓ [PREGUNTA PROVOCADORA SOBRE FINANZAS]
+
+Quiero saber tu opinión genuina 👇
+
+Por un lado, [argumento a favor de postura A].
+
+Pero por otro, [argumento a favor de postura B].
+
+Yo creo que [tu postura], porque [razón breve].
+
+¿Vos qué pensás?
+A) [Opción A]
+B) [Opción B]
+C) Depende de [variable]
+
+Contame en comentarios — leo todos 🙏`,
+  },
 ];

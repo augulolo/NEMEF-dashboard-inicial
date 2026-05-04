@@ -32,6 +32,14 @@ const PRESET_HOOKS: string[] = [
   "La regla del 50/30/20 que simplifica tus finanzas personales:",
   "¿Cedear o acción local? Esto deberías saber antes de elegir:",
   "El único gráfico que necesitás ver para entender la economía argentina:",
+  "Esto es lo que hacen los argentinos que tienen ahorros en dólares:",
+  "La mayor mentira que te contaron sobre hacerte rico en Argentina:",
+  "¿Cuánto necesitás para poder retirarte en Argentina? La matemática real:",
+  "El activo más seguro del mundo que pocos argentinos tienen en su cartera:",
+  "Por qué el 80% de los que invierten en criptos pierden plata:",
+  "Lo que cambió en mi economía personal cuando aprendí esta sola regla:",
+  "¿Tu fondo de emergencia está en el lugar correcto? Probablemente no:",
+  "La brecha entre quien entiende de finanzas y quien no, se agranda cada año:",
 ];
 
 const PRESET_CTAS: string[] = [
@@ -45,6 +53,11 @@ const PRESET_CTAS: string[] = [
   "¿Estás aplicando esto? Sí / No en los comentarios",
   "Guardá este post y volvé a leerlo en una semana",
   "Etiquetá a alguien que necesita escuchar esto",
+  "¿Qué parte no entendiste? Preguntá sin miedo 💬",
+  "Dale me gusta si esto te cambió la perspectiva ❤️",
+  "Activá la campanita para no perderte el próximo 🔔",
+  "¿De 1 al 10, cuánto sabías esto? Respondé en comentarios",
+  "Seguime y en 30 días vas a pensar diferente sobre tu plata 📈",
 ];
 
 function CopyButton({ text }: { text: string }) {
