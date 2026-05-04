@@ -93,6 +93,15 @@ export function PostCard({
 
   const isOverdue = post.status === "scheduled" && post.scheduledDate && post.scheduledDate < TODAY;
 
+  // "due soon": scheduled for today or tomorrow but not yet overdue
+  const TOMORROW = (() => {
+    const d = new Date(TODAY + "T00:00:00");
+    d.setDate(d.getDate() + 1);
+    return d.toLocaleDateString("en-CA");
+  })();
+  const isDueToday = post.status === "scheduled" && post.scheduledDate === TODAY;
+  const isDueTomorrow = post.status === "scheduled" && post.scheduledDate === TOMORROW;
+
   const handleSave = () => {
     onEdit({ ...post, caption, type, status, scheduledDate: scheduledDate || undefined });
     setEditing(false);
@@ -206,7 +215,8 @@ export function PostCard({
       )}
       <Card className={cn(
         "group hover:border-primary/50 transition-colors",
-        isOverdue && "border-amber-500/40"
+        isOverdue && "border-amber-500/40",
+        isDueToday && !isOverdue && "border-blue-500/40"
       )}>
         <CardContent className="p-4 space-y-3">
           {/* Header */}
@@ -217,6 +227,16 @@ export function PostCard({
               {isOverdue && (
                 <span className="text-[10px] font-medium text-amber-400 border border-amber-500/40 rounded px-1 py-0.5 leading-none">
                   atrasado
+                </span>
+              )}
+              {isDueToday && !isOverdue && (
+                <span className="text-[10px] font-medium text-blue-400 border border-blue-500/40 rounded px-1 py-0.5 leading-none animate-pulse">
+                  hoy
+                </span>
+              )}
+              {isDueTomorrow && (
+                <span className="text-[10px] font-medium text-primary/80 border border-primary/30 rounded px-1 py-0.5 leading-none">
+                  mañana
                 </span>
               )}
             </div>

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Clock, Send } from "lucide-react";
+import { Plus, Trash2, Clock, Send, Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import { supabase } from "@/lib/supabase";
@@ -13,6 +13,7 @@ type Note = {
   content: string;
   createdAt: string;
   updatedAt: string;
+  pinned?: boolean;
 };
 
 const STORAGE_KEY = "nemef_notes";
@@ -46,7 +47,10 @@ export default function NotasPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    const loaded = loadNotes();
+    const loaded = loadNotes().sort((a, b) => {
+      if (a.pinned === b.pinned) return b.updatedAt.localeCompare(a.updatedAt);
+      return a.pinned ? -1 : 1;
+    });
     setNotes(loaded);
     if (loaded.length > 0) {
       setActiveId(loaded[0].id);
@@ -115,6 +119,19 @@ export default function NotasPage() {
     toast("Nota eliminada");
   };
 
+  const handlePin = (id: string) => {
+    const updated = notes.map((n) =>
+      n.id === id ? { ...n, pinned: !n.pinned } : n
+    );
+    // Re-sort: pinned first, then by updatedAt
+    updated.sort((a, b) => {
+      if (a.pinned === b.pinned) return b.updatedAt.localeCompare(a.updatedAt);
+      return a.pinned ? -1 : 1;
+    });
+    setNotes(updated);
+    saveNotes(updated);
+  };
+
   const handleConvertToPost = async () => {
     if (!content.trim()) return;
     const { error } = await supabase.from("posts").insert({
@@ -168,21 +185,39 @@ export default function NotasPage() {
                     : "hover:bg-accent border-transparent"
                 )}
               >
-                <p className="text-sm font-medium truncate leading-snug">
-                  {preview(note.id === activeId ? content : note.content)}
-                </p>
+                <div className="flex items-start gap-1.5">
+                  {note.pinned && (
+                    <Pin className="h-3 w-3 text-primary shrink-0 mt-0.5 rotate-45" />
+                  )}
+                  <p className="text-sm font-medium truncate leading-snug flex-1 min-w-0">
+                    {preview(note.id === activeId ? content : note.content)}
+                  </p>
+                </div>
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     {timeAgo(note.updatedAt)}
                   </span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(note.id); }}
-                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-400 transition-all"
-                    aria-label="Eliminar nota"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handlePin(note.id); }}
+                      className={cn(
+                        "text-muted-foreground hover:text-primary transition-colors",
+                        note.pinned && "text-primary opacity-100"
+                      )}
+                      aria-label={note.pinned ? "Desanclar nota" : "Anclar nota"}
+                      title={note.pinned ? "Desanclar" : "Anclar arriba"}
+                    >
+                      <Pin className="h-3.5 w-3.5 rotate-45" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDelete(note.id); }}
+                      className="text-muted-foreground hover:text-red-400 transition-colors"
+                      aria-label="Eliminar nota"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
