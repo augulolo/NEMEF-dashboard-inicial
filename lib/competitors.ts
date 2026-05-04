@@ -29,6 +29,7 @@ export interface Competitor {
   recentPosts: RecentPost[];
   profilePicUrl?: string;
   bio?: string;
+  syncedAt?: string;
 }
 
 export const SEED_COMPETITORS: Competitor[] = [];

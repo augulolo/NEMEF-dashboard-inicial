@@ -107,6 +107,7 @@ export async function POST(req: Request) {
       }));
 
       const newHistory = [...currentHistory, profile.followersCount].slice(-12);
+      const nowIso = new Date().toISOString();
       const { error } = await supabase.from("competitors").update({
         followers: profile.followersCount,
         followers_history: newHistory,
@@ -115,6 +116,7 @@ export async function POST(req: Request) {
         recent_posts: recentPosts,
         profile_pic_url: profilePicUrl,
         bio: bio,
+        synced_at: nowIso,
       }).eq("id", id);
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -177,16 +179,18 @@ export async function POST(req: Request) {
         ?? "";
       const bio = (authorData.description as string) ?? (raw.description as string) ?? "";
 
+      const nowIsoTW = new Date().toISOString();
       const newHistory = [...currentHistory, followers].slice(-12);
       const { error } = await supabase.from("competitors").update({
         followers,
         followers_history: newHistory,
         profile_pic_url: profilePicUrl,
         bio,
+        synced_at: nowIsoTW,
       }).eq("id", id);
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ updated: true, followers, profilePicUrl, bio, syncedAt: new Date().toISOString() });
+      return NextResponse.json({ updated: true, followers, profilePicUrl, bio, syncedAt: nowIsoTW });
     }
 
     if (platform === "youtube") {
@@ -220,16 +224,18 @@ export async function POST(req: Request) {
       const profilePicUrl = itemWithSubs?.channelThumbnail ?? "";
       const bio = itemWithSubs?.channelDescription ?? "";
 
+      const nowIsoYT = new Date().toISOString();
       const newHistory = [...currentHistory, subscriberCount].slice(-12);
       const { error } = await supabase.from("competitors").update({
         followers: subscriberCount,
         followers_history: newHistory,
         profile_pic_url: profilePicUrl,
         bio,
+        synced_at: nowIsoYT,
       }).eq("id", id);
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ updated: true, followers: subscriberCount, profilePicUrl, bio, syncedAt: new Date().toISOString() });
+      return NextResponse.json({ updated: true, followers: subscriberCount, profilePicUrl, bio, syncedAt: nowIsoYT });
     }
 
     return NextResponse.json({ error: `Plataforma '${platform}' no soportada` }, { status: 400 });

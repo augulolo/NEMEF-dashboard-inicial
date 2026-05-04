@@ -343,8 +343,22 @@ export function CompetitorTable({
                       <td />
                       <td colSpan={columns.length + 1} className="px-4 py-4">
                         {c.bio && (
-                          <p className="text-xs text-muted-foreground mb-3 italic">
+                          <p className="text-xs text-muted-foreground mb-2 italic">
                             &ldquo;{c.bio.slice(0, 150)}{c.bio.length > 150 ? "…" : ""}&rdquo;
+                          </p>
+                        )}
+                        {c.syncedAt && (
+                          <p className="text-[11px] text-muted-foreground/60 mb-3">
+                            Datos actualizados {(() => {
+                              const diff = Date.now() - new Date(c.syncedAt).getTime();
+                              const mins = Math.floor(diff / 60000);
+                              if (mins < 1) return "recién";
+                              if (mins < 60) return `hace ${mins}m`;
+                              const hrs = Math.floor(mins / 60);
+                              if (hrs < 24) return `hace ${hrs}h`;
+                              const days = Math.floor(hrs / 24);
+                              return `hace ${days}d`;
+                            })()}
                           </p>
                         )}
 
