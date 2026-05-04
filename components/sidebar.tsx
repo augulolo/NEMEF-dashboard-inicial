@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
 import { createClient } from "@/lib/supabase";
 import { useTheme } from "@/components/theme-provider";
+import { useEffect, useState } from "react";
 
 const nav = [
   { href: "/", label: "Inicio", icon: LayoutDashboard },
@@ -25,6 +26,18 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, toggle } = useTheme();
+  const [overdueCount, setOverdueCount] = useState(0);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+    supabase
+      .from("posts")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "scheduled")
+      .lt("scheduled_date", today)
+      .then(({ count }) => { if (count) setOverdueCount(count); });
+  }, [pathname]); // refresh when navigating
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -59,7 +72,12 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
               )}
             >
               <Icon className="h-4 w-4" />
-              {label}
+              <span className="flex-1">{label}</span>
+              {href === "/instagram" && overdueCount > 0 && (
+                <span className="ml-auto h-5 min-w-[20px] rounded-full bg-amber-500 text-[10px] font-bold text-white flex items-center justify-center px-1 tabular-nums shrink-0">
+                  {overdueCount}
+                </span>
+              )}
             </Link>
           );
         })}

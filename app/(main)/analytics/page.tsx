@@ -135,7 +135,7 @@ export default function AnalyticsPage() {
       supabase.from("posts").select("*"),
       supabase.from("calendar_items").select("*"),
       supabase.from("competitors")
-        .select("id, handle, name, platform, region, followers, followers_history, engagement_rate, posts_per_week, recent_posts, profile_pic_url")
+        .select("id, handle, name, platform, region, followers, followers_history, engagement_rate, posts_per_week, recent_posts, profile_pic_url, synced_at")
         .order("engagement_rate", { ascending: false })
         .limit(10),
     ]).then(([postsRes, calRes, compRes]) => {
@@ -163,6 +163,7 @@ export default function AnalyticsPage() {
           postsPerWeek: r.posts_per_week,
           recentPosts: r.recent_posts ?? [],
           profilePicUrl: r.profile_pic_url ?? "",
+          syncedAt: r.synced_at ?? undefined,
         })));
       }
       setLoading(false);

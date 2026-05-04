@@ -59,6 +59,7 @@ function fromDBCompetitor(row: Record<string, unknown>): Competitor {
     recentPosts: (row.recent_posts as Competitor["recentPosts"]) ?? [],
     profilePicUrl: (row.profile_pic_url as string) ?? "",
     bio: (row.bio as string) ?? "",
+    syncedAt: (row.synced_at as string) ?? undefined,
   };
 }
 
