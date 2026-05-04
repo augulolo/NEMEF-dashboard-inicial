@@ -118,17 +118,37 @@ export function PostCard({
 
   const Icon = typeIcon[post.type];
 
+  const IG_MAX = 2200;
+  const IG_PREVIEW = 125;
+
   if (editing) {
+    const charCount = caption.length;
+    const overLimit = charCount > IG_MAX;
+    const nearLimit = charCount > IG_MAX * 0.9;
+
     return (
       <Card className="border-primary/50">
         <CardContent className="p-4 space-y-3">
-          <Textarea
-            value={caption}
-            onChange={(e) => setCaption(e.target.value)}
-            className="text-sm resize-none"
-            rows={3}
-            autoFocus
-          />
+          <div className="relative">
+            <Textarea
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              className={cn("text-sm resize-none pb-6", overLimit && "border-red-500/60 focus-visible:ring-red-500/30")}
+              rows={4}
+              autoFocus
+            />
+            <div className="absolute bottom-2 right-2 flex items-center gap-2">
+              {charCount > IG_PREVIEW && charCount <= IG_MAX && (
+                <span className="text-[10px] text-amber-400 opacity-80">corta en {IG_PREVIEW}</span>
+              )}
+              <span className={cn(
+                "text-[10px] tabular-nums font-medium",
+                overLimit ? "text-red-400" : nearLimit ? "text-amber-400" : "text-muted-foreground"
+              )}>
+                {charCount}/{IG_MAX}
+              </span>
+            </div>
+          </div>
           <Button
             variant="outline"
             size="sm"

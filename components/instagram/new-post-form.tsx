@@ -118,12 +118,17 @@ export function NewPostForm({ onCreate }: { onCreate: (post: Post) => void }) {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium text-muted-foreground">Copy / Descripción</label>
-              <span className={cn(
-                "text-xs tabular-nums",
-                caption.length > 2000 ? "text-red-400" : caption.length > 1800 ? "text-amber-400" : "text-muted-foreground"
-              )}>
-                {caption.length}/2200
-              </span>
+              <div className="flex items-center gap-2">
+                {caption.length > 125 && caption.length <= 2200 && (
+                  <span className="text-[10px] text-amber-400/80">corta en 125</span>
+                )}
+                <span className={cn(
+                  "text-xs tabular-nums font-medium",
+                  caption.length > 2200 ? "text-red-400" : caption.length > 1980 ? "text-amber-400" : "text-muted-foreground"
+                )}>
+                  {caption.length}/2200
+                </span>
+              </div>
             </div>
             <Textarea
               value={caption}
@@ -131,6 +136,7 @@ export function NewPostForm({ onCreate }: { onCreate: (post: Post) => void }) {
               placeholder="¿De qué trata este post?"
               required
               rows={4}
+              className={caption.length > 2200 ? "border-red-500/60" : ""}
             />
           </div>
 

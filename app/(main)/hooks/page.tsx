@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Check, Copy, Plus, Trash2 } from "lucide-react";
+import { Check, Copy, Plus, Trash2, Search, X } from "lucide-react";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { cn } from "@/lib/utils";
 
@@ -111,6 +111,7 @@ export default function HooksPage() {
   const [activeTab, setActiveTab] = useState<Tab>("hooks");
   const [customHooks, setCustomHooks, hydrated] = useLocalStorage<string[]>("nemef_hooks", []);
   const [newHook, setNewHook] = useState("");
+  const [search, setSearch] = useState("");
 
   const handleAddCustom = (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,11 +139,11 @@ export default function HooksPage() {
       />
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b">
+      <div className="flex gap-1 mb-0 border-b">
         {tabs.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => { setActiveTab(tab.key); setSearch(""); }}
             className={cn(
               "inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
               activeTab === tab.key
@@ -165,45 +166,98 @@ export default function HooksPage() {
         ))}
       </div>
 
-      {/* Hooks tab */}
-      {activeTab === "hooks" && (
-        <div className="space-y-2">
-          <p className="text-xs text-muted-foreground mb-4">
-            Frases diseñadas para captar atención en los primeros 3 segundos. Adaptálas a tu voz.
-          </p>
-          {PRESET_HOOKS.map((hook, i) => (
-            <ItemCard
-              key={i}
-              text={hook}
-              saved={customHooks.includes(hook)}
-              onSave={() => {
-                if (!customHooks.includes(hook))
-                  setCustomHooks((prev) => [hook, ...prev]);
-              }}
-            />
-          ))}
+      {/* Search bar (hooks + ctas tabs only) */}
+      {activeTab !== "saved" && (
+        <div className="relative my-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={activeTab === "hooks" ? "Buscar hooks…" : "Buscar CTAs…"}
+            className="pl-9 pr-9"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       )}
 
+      {/* Hooks tab */}
+      {activeTab === "hooks" && (() => {
+        const filtered = search.trim()
+          ? PRESET_HOOKS.filter((h) => h.toLowerCase().includes(search.toLowerCase()))
+          : PRESET_HOOKS;
+        return (
+          <div className="space-y-2">
+            {search.trim() && (
+              <p className="text-xs text-muted-foreground mb-3">
+                {filtered.length} resultado{filtered.length !== 1 ? "s" : ""} para "{search}"
+              </p>
+            )}
+            {!search.trim() && (
+              <p className="text-xs text-muted-foreground mb-4">
+                Frases diseñadas para captar atención en los primeros 3 segundos. Adaptálas a tu voz.
+              </p>
+            )}
+            {filtered.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Sin resultados.</p>
+            ) : (
+              filtered.map((hook, i) => (
+                <ItemCard
+                  key={i}
+                  text={hook}
+                  saved={customHooks.includes(hook)}
+                  onSave={() => {
+                    if (!customHooks.includes(hook))
+                      setCustomHooks((prev) => [hook, ...prev]);
+                  }}
+                />
+              ))
+            )}
+          </div>
+        );
+      })()}
+
       {/* CTAs tab */}
-      {activeTab === "ctas" && (
-        <div className="space-y-2">
-          <p className="text-xs text-muted-foreground mb-4">
-            Llamados a la acción para cerrar tus posts y aumentar la interacción.
-          </p>
-          {PRESET_CTAS.map((cta, i) => (
-            <ItemCard
-              key={i}
-              text={cta}
-              saved={customHooks.includes(cta)}
-              onSave={() => {
-                if (!customHooks.includes(cta))
-                  setCustomHooks((prev) => [cta, ...prev]);
-              }}
-            />
-          ))}
-        </div>
-      )}
+      {activeTab === "ctas" && (() => {
+        const filtered = search.trim()
+          ? PRESET_CTAS.filter((c) => c.toLowerCase().includes(search.toLowerCase()))
+          : PRESET_CTAS;
+        return (
+          <div className="space-y-2">
+            {search.trim() && (
+              <p className="text-xs text-muted-foreground mb-3">
+                {filtered.length} resultado{filtered.length !== 1 ? "s" : ""} para "{search}"
+              </p>
+            )}
+            {!search.trim() && (
+              <p className="text-xs text-muted-foreground mb-4">
+                Llamados a la acción para cerrar tus posts y aumentar la interacción.
+              </p>
+            )}
+            {filtered.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Sin resultados.</p>
+            ) : (
+              filtered.map((cta, i) => (
+                <ItemCard
+                  key={i}
+                  text={cta}
+                  saved={customHooks.includes(cta)}
+                  onSave={() => {
+                    if (!customHooks.includes(cta))
+                      setCustomHooks((prev) => [cta, ...prev]);
+                  }}
+                />
+              ))
+            )}
+          </div>
+        );
+      })()}
 
       {/* Saved tab */}
       {activeTab === "saved" && (

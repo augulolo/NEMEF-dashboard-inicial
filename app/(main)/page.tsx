@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { OwnAccountWidget } from "@/components/home/own-account-widget";
+import { CompetitorAvatar } from "@/components/competitors/competitor-avatar";
 
 function serverGrowthPct(history: number[]): number {
   if (!history || history.length < 2) return 0;
@@ -81,6 +82,7 @@ export default async function Home() {
   const topCompetitors = rawCompetitors
     .map((c) => ({
       ...c,
+      profilePicUrl: (c.profile_pic_url as string) ?? "",
       growthPct: serverGrowthPct(
         Array.isArray(c.followers_history) ? c.followers_history : []
       ),
@@ -220,20 +222,12 @@ export default async function Home() {
             <CardContent className="p-4">
               <div className="space-y-3">
                 {topCompetitors.map((c) => {
-                  const initials = c.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
                   return (
                     <div key={c.id} className="flex items-center gap-3">
-                      {c.profile_pic_url ? (
-                        <img
-                          src={c.profile_pic_url}
-                          alt={c.name}
-                          className="h-9 w-9 rounded-full object-cover bg-muted shrink-0"
-                        />
-                      ) : (
-                        <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0 select-none">
-                          {initials}
-                        </div>
-                      )}
+                      <CompetitorAvatar
+                        competitor={{ name: c.name, handle: c.handle, platform: c.platform, profilePicUrl: c.profilePicUrl }}
+                        size="md"
+                      />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{c.name}</p>
                         <p className="text-xs text-muted-foreground truncate">{c.handle}</p>
