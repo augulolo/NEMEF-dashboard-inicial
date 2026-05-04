@@ -130,6 +130,13 @@ export default function CalendarPage() {
 
   const dayItems = filtered.filter((i) => i.date === selectedDay);
 
+  // Monthly stats for the currently viewed month
+  const monthPrefix = `${cursor.year}-${String(cursor.month + 1).padStart(2, "0")}`;
+  const monthItems = items.filter((it) => it.date.startsWith(monthPrefix) && activePlatforms.has(it.platform));
+  const monthScheduled  = monthItems.filter((i) => i.status === "scheduled").length;
+  const monthPublished  = monthItems.filter((i) => i.status === "published").length;
+  const monthTotal      = monthItems.length;
+
   const exportICS = () => {
     const escape = (s: string) => s.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, "\\n");
     const lines = [
@@ -237,6 +244,14 @@ export default function CalendarPage() {
           onAll={() => setActivePlatforms(new Set(PLATFORMS))}
         />
       </div>
+
+      {!loading && monthTotal > 0 && (
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mb-4 text-xs text-muted-foreground px-1">
+          <span><span className="font-semibold text-foreground tabular-nums">{monthTotal}</span> entradas en {monthLabel}</span>
+          {monthPublished > 0 && <span><span className="font-semibold text-emerald-400 tabular-nums">{monthPublished}</span> publicadas</span>}
+          {monthScheduled > 0 && <span><span className="font-semibold text-primary tabular-nums">{monthScheduled}</span> programadas</span>}
+        </div>
+      )}
 
       {loading ? (
         <div className="text-sm text-muted-foreground">Cargando calendario…</div>
