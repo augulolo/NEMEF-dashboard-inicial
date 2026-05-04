@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
-import { Plus, X, Sparkles, Hash, RefreshCw, Copy, Check, LayoutTemplate, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, X, Sparkles, Hash, RefreshCw, Copy, Check, LayoutTemplate, ChevronDown, ChevronUp, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   POST_TYPES, POST_STATUSES, TYPE_LABELS, STATUS_LABELS,
@@ -14,6 +14,7 @@ import {
 } from "@/lib/posts";
 import { TemplateSelector } from "./template-selector";
 import type { PostTemplate } from "@/lib/post-templates";
+import { saveTags } from "@/lib/tags";
 
 export function NewPostForm({ onCreate }: { onCreate: (post: Post) => void }) {
   const [open, setOpen] = useState(false);
@@ -77,16 +78,22 @@ export function NewPostForm({ onCreate }: { onCreate: (post: Post) => void }) {
   const [hashtagsLoading, setHashtagsLoading] = useState(false);
   const [hashtagsCopied, setHashtagsCopied] = useState(false);
 
+  // Tags
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
+
   const reset = () => {
     setCaption(""); setType("photo"); setStatus("draft");
-    setScheduledDate(""); setHashtags([]);
+    setScheduledDate(""); setHashtags([]); setTags([]); setTagInput("");
   };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!caption.trim()) return;
+    const newId = crypto.randomUUID();
+    if (tags.length > 0) saveTags(newId, tags);
     onCreate({
-      id: crypto.randomUUID(),
+      id: newId,
       caption: caption.trim(),
       type, status,
       scheduledDate: scheduledDate || undefined,
@@ -335,6 +342,50 @@ export function NewPostForm({ onCreate }: { onCreate: (post: Post) => void }) {
                   <span className="text-muted-foreground ml-auto text-[10px]">{hashtags.length} hashtags</span>
                 </div>
               </div>
+            )}
+          </div>
+
+          {/* Tags */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <Tag className="h-3 w-3" /> Etiquetas
+              </label>
+              <span className="text-[10px] text-muted-foreground">{tags.length}/5</span>
+            </div>
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {tags.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setTags((prev) => prev.filter((t) => t !== tag))}
+                    className="inline-flex items-center gap-0.5 text-xs rounded-full border border-primary/30 bg-primary/10 text-primary px-2 py-0.5 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                    title="Clic para eliminar"
+                  >
+                    {tag} <X className="h-2.5 w-2.5" />
+                  </button>
+                ))}
+              </div>
+            )}
+            {tags.length < 5 && (
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                  if (e.key === "Enter" || e.key === ",") {
+                    e.preventDefault();
+                    const val = tagInput.trim().replace(/,/g, "");
+                    if (val && !tags.includes(val) && tags.length < 5) {
+                      setTags((prev) => [...prev, val]);
+                    }
+                    setTagInput("");
+                  }
+                }}
+                placeholder="+ etiqueta"
+                className="w-full rounded-md border bg-background px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
             )}
           </div>
 

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   FileText, Calendar, CheckCircle2, Inbox, TrendingUp, TrendingDown,
   Minus, Sparkles, RefreshCw, Download, ChevronLeft, ChevronRight,
-  AlertCircle, Target, Zap, BarChart3, Clock,
+  AlertCircle, Target, Zap, BarChart3, Clock, Copy, Check, Mail,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
@@ -88,6 +88,7 @@ export default function ReportsPage() {
   const [aiReport, setAiReport] = useState<AIReport | null>(null);
   const [generating, setGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // Load all data once
   useEffect(() => {
@@ -293,6 +294,55 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url);
   };
 
+  const buildPlainText = () => {
+    if (!aiReport) return "";
+    const monthStr = `${MONTH_NAMES[selectedMonth]} ${selectedYear}`;
+    return [
+      `REPORTE MENSUAL NEMEF — ${monthStr.toUpperCase()}`,
+      "═".repeat(60),
+      "",
+      `📌 ${aiReport.headline}`,
+      "",
+      "RESUMEN EJECUTIVO",
+      "─".repeat(40),
+      aiReport.summary,
+      "",
+      "MÉTRICAS CLAVE",
+      "─".repeat(40),
+      ...aiReport.highlights.map((h) => `${h.icon} ${h.label}: ${h.value}`),
+      "",
+      "ANÁLISIS",
+      "─".repeat(40),
+      ...aiReport.insights.map((i) => `• ${i.title}\n  ${i.text}`),
+      "",
+      "RECOMENDACIONES PARA EL PRÓXIMO MES",
+      "─".repeat(40),
+      ...aiReport.recommendations.map((r, i) => `${i + 1}. ${r}`),
+      "",
+      "OBJETIVO DEL PRÓXIMO MES",
+      "─".repeat(40),
+      aiReport.nextMonthGoal,
+      "",
+      "─".repeat(60),
+      `Generado por NEMEF Dashboard · ${new Date().toLocaleDateString("es-AR")}`,
+    ].join("\n");
+  };
+
+  const handleCopy = async () => {
+    const text = buildPlainText();
+    if (!text) return;
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleMailto = () => {
+    const monthStr = `${MONTH_NAMES[selectedMonth]} ${selectedYear}`;
+    const subject = encodeURIComponent(`Reporte NEMEF — ${monthStr}`);
+    const body = encodeURIComponent(buildPlainText());
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
+
   // ── render ───────────────────────────────────────────────────────────────────
 
   const isCurrentMonth = selectedYear === now.getFullYear() && selectedMonth === now.getMonth();
@@ -308,6 +358,14 @@ export default function ReportsPage() {
         />
         {aiReport && (
           <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" size="sm" onClick={handleCopy}>
+              {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? "Copiado" : "Copiar"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleMailto}>
+              <Mail className="h-3.5 w-3.5" />
+              Email
+            </Button>
             <Button variant="outline" size="sm" onClick={() => handleExport("txt")}>
               <Download className="h-3.5 w-3.5" />
               .txt

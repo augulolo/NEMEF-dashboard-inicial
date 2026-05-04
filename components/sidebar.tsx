@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, Calendar, Instagram, Newspaper, Target, LayoutDashboard, LogOut, Sun, Moon, Lightbulb, StickyNote, Zap, FileText, BookOpen, Search } from "lucide-react";
+import { BarChart3, Calendar, Instagram, Newspaper, Target, LayoutDashboard, LogOut, Sun, Moon, Lightbulb, StickyNote, Zap, FileText, BookOpen, Search, MonitorPlay, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
 import { createClient } from "@/lib/supabase";
@@ -22,6 +22,8 @@ const nav = [
   { href: "/hooks", label: "Hooks y CTAs", icon: Zap },
   { href: "/reports", label: "Reportes", icon: FileText },
   { href: "/projects", label: "Lab. de Proyectos", icon: BookOpen },
+  { href: "/teleprompter", label: "Teleprompter", icon: MonitorPlay },
+  { href: "/settings", label: "Configuración", icon: Settings },
 ];
 
 export function Sidebar({ onClose }: { onClose?: () => void }) {
@@ -111,7 +113,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           <LogOut className="h-4 w-4" />
           Cerrar sesión
         </button>
-        <p className="text-xs text-muted-foreground text-center mt-2">v0.6.0</p>
+        <p className="text-xs text-muted-foreground text-center mt-2">v0.8.0</p>
       </div>
     </aside>
   );

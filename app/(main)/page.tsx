@@ -9,6 +9,7 @@ import {
 import Link from "next/link";
 import { OwnAccountWidget } from "@/components/home/own-account-widget";
 import { MarketTicker } from "@/components/home/market-ticker";
+import { WeeklyBrief } from "@/components/home/weekly-brief";
 import { CompetitorAvatar } from "@/components/competitors/competitor-avatar";
 
 function serverGrowthPct(history: number[]): number {
@@ -263,6 +264,9 @@ export default async function Home() {
           })}
         </div>
       </div>
+
+      {/* Brief semanal IA */}
+      <WeeklyBrief />
 
       {/* Últimas noticias financieras */}
       {newsItems.length > 0 && (

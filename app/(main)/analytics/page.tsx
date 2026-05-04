@@ -15,6 +15,7 @@ import { Sparkline } from "@/components/competitors/sparkline";
 import { MyAccount } from "@/components/analytics/my-account";
 import { BenchmarkCard } from "@/components/analytics/benchmark-card";
 import { CompetitorAvatar } from "@/components/competitors/competitor-avatar";
+import { GrowthChart, type Series } from "@/components/analytics/growth-chart";
 
 const STATUS_COLORS: Record<string, string> = {
   published: "bg-emerald-500",
@@ -115,6 +116,7 @@ export default function AnalyticsPage() {
   const [calendarItems, setCalendarItems] = useState<CalendarItem[]>([]);
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [growthSeries, setGrowthSeries] = useState<Series[]>([]);
   const [insights, setInsights] = useState<InsightBullet[] | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [insightsError, setInsightsError] = useState<string | null>(null);
@@ -167,6 +169,67 @@ export default function AnalyticsPage() {
         })));
       }
       setLoading(false);
+    });
+  }, []);
+
+  // Load growth comparison data
+  useEffect(() => {
+    const COMP_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#ec4899"];
+    Promise.all([
+      supabase.from("own_accounts").select("followers_history, handle, platform").limit(1),
+      supabase.from("competitors").select("name, handle, followers_history").order("followers", { ascending: false }).limit(5),
+    ]).then(([ownRes, compRes]) => {
+      const ownAccount = ownRes.data?.[0];
+      const compList = compRes.data ?? [];
+
+      const allHistories: number[][] = [];
+      if (ownAccount?.followers_history && Array.isArray(ownAccount.followers_history)) {
+        allHistories.push(ownAccount.followers_history as number[]);
+      }
+      for (const c of compList) {
+        if (c.followers_history && Array.isArray(c.followers_history)) {
+          allHistories.push(c.followers_history as number[]);
+        }
+      }
+
+      const nonEmptyLengths = allHistories
+        .filter((h) => h.length >= 2)
+        .map((h) => h.length);
+      if (nonEmptyLengths.length === 0) return;
+      const minLen = Math.min(...nonEmptyLengths);
+
+      const normalize = (h: number[]): number[] => {
+        if (h.length <= minLen) return h;
+        return h.slice(h.length - minLen);
+      };
+
+      const series: Series[] = [];
+
+      if (ownAccount?.followers_history && Array.isArray(ownAccount.followers_history)) {
+        const data = normalize(ownAccount.followers_history as number[]);
+        if (data.length >= 2) {
+          series.push({
+            label: ownAccount.handle ?? "Yo",
+            color: "#8b5cf6",
+            data,
+            isOwn: true,
+          });
+        }
+      }
+
+      compList.forEach((c, i) => {
+        if (!c.followers_history || !Array.isArray(c.followers_history)) return;
+        const data = normalize(c.followers_history as number[]);
+        if (data.length >= 2) {
+          series.push({
+            label: c.name ?? c.handle,
+            color: COMP_COLORS[i] ?? "#94a3b8",
+            data,
+          });
+        }
+      });
+
+      setGrowthSeries(series);
     });
   }, []);
 
@@ -691,6 +754,20 @@ export default function AnalyticsPage() {
                 );
               })}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Comparativa de crecimiento */}
+      {growthSeries.length >= 1 && (
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Comparativa de crecimiento — vos vs. creadores
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <GrowthChart series={growthSeries} height={220} />
           </CardContent>
         </Card>
       )}

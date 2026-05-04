@@ -9,12 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import {
   Image as ImageIcon, Film, Circle, Layers, Calendar,
-  Trash2, Pencil, Check, X, Copy, CheckCircle2, Repeat2, Star, RefreshCw, Sparkles, Files, Expand, History, RotateCcw,
+  Trash2, Pencil, Check, X, Copy, CheckCircle2, Repeat2, Star, RefreshCw, Sparkles, Files, Expand, History, RotateCcw, Tag,
 } from "lucide-react";
 import type { Post, PostType, PostStatus } from "@/lib/posts";
 import { TYPE_LABELS, STATUS_LABELS, POST_TYPES, POST_STATUSES } from "@/lib/posts";
 import { cn } from "@/lib/utils";
 import { RepurposeDialog } from "./repurpose-dialog";
+import { loadTags, saveTags } from "@/lib/tags";
 
 const typeIcon = {
   photo: ImageIcon,
@@ -75,6 +76,8 @@ export function PostCard({
   const [improving, setImproving] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [tags, setTags] = useState<string[]>(() => loadTags(post.id));
+  const [tagInput, setTagInput] = useState("");
 
   const handleScore = async () => {
     if (scoring) return;
@@ -142,6 +145,7 @@ export function PostCard({
       status: post.status,
       scheduledDate: post.scheduledDate,
     });
+    saveTags(post.id, tags);
     onEdit({ ...post, caption, type, status, scheduledDate: scheduledDate || undefined });
     setEditing(false);
   };
@@ -166,6 +170,8 @@ export function PostCard({
     setType(post.type);
     setStatus(post.status);
     setScheduledDate(post.scheduledDate ?? "");
+    setTags(loadTags(post.id));
+    setTagInput("");
     setEditing(false);
   };
 
@@ -242,6 +248,53 @@ export function PostCard({
             onChange={(e) => setScheduledDate(e.target.value)}
             className="text-xs"
           />
+          {/* Tag editor */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+              <Tag className="h-3 w-3" />
+              <span>Etiquetas</span>
+              <span className="ml-auto">{tags.length}/5</span>
+            </div>
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-0.5 rounded-full border border-primary/40 bg-primary/10 text-primary px-2 py-0.5 text-[10px]"
+                  >
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => setTags((prev) => prev.filter((t) => t !== tag))}
+                      className="ml-0.5 hover:text-red-400 transition-colors"
+                      aria-label={`Eliminar etiqueta ${tag}`}
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {tags.length < 5 && (
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                  if (e.key === "Enter" || e.key === ",") {
+                    e.preventDefault();
+                    const val = tagInput.trim().replace(/,/g, "");
+                    if (val && !tags.includes(val) && tags.length < 5) {
+                      setTags((prev) => [...prev, val]);
+                    }
+                    setTagInput("");
+                  }
+                }}
+                placeholder="+ etiqueta"
+                className="w-full rounded-md border bg-background px-2.5 py-1 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            )}
+          </div>
           <div className="flex gap-2 pt-1">
             <Button size="sm" onClick={handleSave} className="flex-1">
               <Check className="h-3.5 w-3.5 mr-1" /> Guardar
@@ -492,6 +545,20 @@ export function PostCard({
               </span>
             )}
           </button>
+
+          {/* Tags (read-only) */}
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center rounded-full border border-primary/30 px-2 py-0.5 text-[10px] text-primary/80"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* Score tip */}
           {score && (

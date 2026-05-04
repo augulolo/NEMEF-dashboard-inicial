@@ -12,6 +12,8 @@ import { POST_STATUSES, POST_TYPES, TYPE_LABELS, STATUS_LABELS, SEED_POSTS, type
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import { getAllUniqueTags, loadAllTags } from "@/lib/tags";
+import { Tag } from "lucide-react";
 
 const stats: { status: PostStatus; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { status: "scheduled", label: "Programados", icon: Calendar },
@@ -41,6 +43,8 @@ export default function InstagramPage() {
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState<PostStatus | "">("");
+  const [activeTagFilters, setActiveTagFilters] = useState<Set<string>>(new Set());
+  const [allTags, setAllTags] = useState<string[]>(() => getAllUniqueTags());
 
   // Carga inicial desde Supabase
   useEffect(() => {
@@ -74,11 +78,19 @@ export default function InstagramPage() {
 
   const filteredPosts = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return posts.filter((p) =>
-      (typeFilter === "all" || p.type === typeFilter) &&
-      (!q || p.caption.toLowerCase().includes(q))
-    );
-  }, [posts, typeFilter, search]);
+    const tagMap = loadAllTags();
+    return posts.filter((p) => {
+      if (typeFilter !== "all" && p.type !== typeFilter) return false;
+      if (q && !p.caption.toLowerCase().includes(q)) return false;
+      if (activeTagFilters.size > 0) {
+        const postTags = tagMap[p.id] ?? [];
+        for (const requiredTag of activeTagFilters) {
+          if (!postTags.includes(requiredTag)) return false;
+        }
+      }
+      return true;
+    });
+  }, [posts, typeFilter, search, activeTagFilters]);
 
   const grouped = useMemo(() => {
     const g: Record<PostStatus, Post[]> = { scheduled: [], draft: [], published: [], backlog: [] };
@@ -87,6 +99,8 @@ export default function InstagramPage() {
     g.published.sort((a, b) => (b.scheduledDate ?? "").localeCompare(a.scheduledDate ?? ""));
     return g;
   }, [filteredPosts]);
+
+  const refreshAllTags = () => setAllTags(getAllUniqueTags());
 
   const handleCreate = async (post: Post) => {
     const { data, error } = await supabase
@@ -101,6 +115,7 @@ export default function InstagramPage() {
       .single();
     if (!error && data) {
       setPosts((prev) => [fromDB(data), ...prev]);
+      refreshAllTags();
       toast("Post creado");
     } else if (error) {
       toast("Error al crear el post", "error");
@@ -119,6 +134,7 @@ export default function InstagramPage() {
       .eq("id", updated.id);
     if (!error) {
       setPosts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      refreshAllTags();
       toast("Post actualizado");
     } else {
       toast("Error al guardar cambios", "error");
@@ -344,6 +360,43 @@ export default function InstagramPage() {
           </div>
         </div>
       </div>
+
+      {/* Tag filter row */}
+      {allTags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Tag className="h-3 w-3" /> Etiquetas:
+          </span>
+          {allTags.map((tag) => (
+            <button
+              key={tag}
+              onClick={() =>
+                setActiveTagFilters((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(tag)) next.delete(tag); else next.add(tag);
+                  return next;
+                })
+              }
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                activeTagFilters.has(tag)
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-border text-muted-foreground hover:bg-accent"
+              )}
+            >
+              {tag}
+            </button>
+          ))}
+          {activeTagFilters.size > 0 && (
+            <button
+              onClick={() => setActiveTagFilters(new Set())}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Limpiar filtros
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Bulk action bar */}
       {selecting && selected.size > 0 && (
