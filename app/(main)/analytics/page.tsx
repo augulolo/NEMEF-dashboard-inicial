@@ -8,7 +8,7 @@ import { POST_STATUSES, STATUS_LABELS, POST_TYPES, TYPE_LABELS, type Post } from
 import { PLATFORMS, PLATFORM_LABELS, PLATFORM_STYLES } from "@/lib/calendar";
 import type { CalendarItem } from "@/lib/calendar";
 import { cn } from "@/lib/utils";
-import { FileText, CheckCircle2, Clock, Lightbulb, TrendingUp, TrendingDown, Sparkles, RefreshCw } from "lucide-react";
+import { FileText, CheckCircle2, Clock, Lightbulb, TrendingUp, TrendingDown, Sparkles, RefreshCw, Copy, Check } from "lucide-react";
 import { growthPct, formatCount } from "@/lib/competitors";
 import type { Competitor } from "@/lib/competitors";
 import { Sparkline } from "@/components/competitors/sparkline";
@@ -63,6 +63,46 @@ function KpiCard({ icon: Icon, label, value, color }: {
           <p className={cn("text-2xl font-semibold mt-1 tabular-nums", color)}>{value}</p>
         </div>
         <Icon className="h-5 w-5 text-muted-foreground" />
+      </CardContent>
+    </Card>
+  );
+}
+
+function HashtagsCard({ hashtags }: { hashtags: { tag: string; count: number }[] }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopyAll = () => {
+    navigator.clipboard.writeText(hashtags.map((h) => h.tag).join(" ")).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <Card>
+      <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          Hashtags más usados
+        </CardTitle>
+        <button
+          onClick={handleCopyAll}
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {copied
+            ? <><Check className="h-3 w-3 text-emerald-400" /> Copiados</>
+            : <><Copy className="h-3 w-3" /> Copiar todos</>
+          }
+        </button>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap gap-1.5">
+          {hashtags.map(({ tag, count }) => (
+            <span
+              key={tag}
+              className="inline-flex items-center gap-1 rounded-full border border-border bg-background/40 px-2.5 py-1 text-xs"
+            >
+              <span className="font-medium">{tag}</span>
+              <span className="text-muted-foreground tabular-nums text-[10px]">×{count}</span>
+            </span>
+          ))}
+        </div>
       </CardContent>
     </Card>
   );
@@ -471,26 +511,7 @@ export default function AnalyticsPage() {
         </Card>
 
         {topHashtags.length > 0 && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Hashtags más usados
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-1.5">
-                {topHashtags.map(({ tag, count }) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center gap-1 rounded-full border border-border bg-background/40 px-2.5 py-1 text-xs"
-                  >
-                    <span className="font-medium">{tag}</span>
-                    <span className="text-muted-foreground tabular-nums text-[10px]">×{count}</span>
-                  </span>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <HashtagsCard hashtags={topHashtags} />
         )}
       </div>
 
