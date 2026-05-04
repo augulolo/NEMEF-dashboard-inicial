@@ -158,6 +158,7 @@ export default function NewsPage() {
   const [fetchedAt, setFetchedAt] = useState<string | null>(null);
   const [topic, setTopic] = useState<NewsTopic | "all">("all");
   const [query, setQuery] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<string | "all">("all");
 
   // "¿Qué publicar hoy?" state
   const [todayIdea, setTodayIdea] = useState<TodayIdea | null>(null);
@@ -194,6 +195,7 @@ export default function NewsPage() {
     const q = query.trim().toLowerCase();
     return items.filter((it) => {
       if (topic !== "all" && !it.topics.includes(topic)) return false;
+      if (sourceFilter !== "all" && it.source !== sourceFilter) return false;
       if (q && !(it.title.toLowerCase().includes(q) || it.summary.toLowerCase().includes(q))) return false;
       return true;
     });
@@ -397,12 +399,24 @@ export default function NewsPage() {
           />
         </div>
         <TopicFilter active={topic} onChange={setTopic} counts={counts} />
+        {sources.length > 1 && (
+          <select
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+            className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary h-10 shrink-0"
+          >
+            <option value="all">Todas las fuentes</option>
+            {sources.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {fetchedAt && (
         <p className="text-xs text-muted-foreground mb-4">
           Última actualización: {new Date(fetchedAt).toLocaleString("es-AR")}
-          {sources.length > 0 && <> · Fuentes: {sources.join(", ")}</>}
+          {" · "}{filtered.length} noticias{sourceFilter !== "all" || topic !== "all" || query ? ` (filtradas de ${items.length})` : ""}
         </p>
       )}
 

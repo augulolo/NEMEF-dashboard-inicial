@@ -235,6 +235,12 @@ export default function AnalyticsPage() {
   const scheduled   = posts.filter((p) => p.status === "scheduled").length;
   const ideas       = posts.filter((p) => p.status === "backlog" || p.status === "draft").length;
 
+  // Content production totals
+  const publishedPosts = posts.filter((p) => p.status === "published");
+  const totalChars = publishedPosts.reduce((s, p) => s + p.caption.length, 0);
+  const totalWords = publishedPosts.reduce((s, p) => s + p.caption.trim().split(/\s+/).filter(Boolean).length, 0);
+  const avgWords = published > 0 ? Math.round(totalWords / published) : 0;
+
   const postsByType   = POST_TYPES.map((t) => ({
     key: t, label: TYPE_LABELS[t],
     count: posts.filter((p) => p.type === t).length,
@@ -293,12 +299,23 @@ export default function AnalyticsPage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid gap-4 md:grid-cols-4 mb-6">
+      <div className="grid gap-4 md:grid-cols-4 mb-4">
         <KpiCard icon={FileText}      label="Posts totales"        value={totalPosts} color="text-primary" />
         <KpiCard icon={CheckCircle2}  label="Publicados"           value={published}  color="text-emerald-400" />
         <KpiCard icon={Clock}         label="Programados"          value={scheduled}  color="text-blue-400" />
         <KpiCard icon={Lightbulb}     label="Ideas y borradores"   value={ideas}      color="text-amber-400" />
       </div>
+
+      {/* Content production summary */}
+      {published > 0 && (
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 px-1 mb-6 text-xs text-muted-foreground">
+          <span><span className="font-semibold text-foreground tabular-nums">{totalWords.toLocaleString("es-AR")}</span> palabras publicadas</span>
+          <span className="opacity-40">·</span>
+          <span><span className="font-semibold text-foreground tabular-nums">{totalChars.toLocaleString("es-AR")}</span> caracteres</span>
+          <span className="opacity-40">·</span>
+          <span><span className="font-semibold text-foreground tabular-nums">{avgWords}</span> palabras promedio / post</span>
+        </div>
+      )}
 
       {/* Meta semanal */}
       {!loading && (() => {
