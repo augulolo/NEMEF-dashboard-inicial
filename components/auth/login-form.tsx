@@ -64,7 +64,7 @@ export function LoginForm() {
               <Input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); if (error) setError(null); }}
                 placeholder="vos@nemef.com"
                 required
                 autoComplete="email"
@@ -77,7 +77,7 @@ export function LoginForm() {
                 <Input
                   type={showPassword ? "text" : "password"}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => { setPassword(e.target.value); if (error) setError(null); }}
                   placeholder="••••••••"
                   required
                   autoComplete="current-password"
