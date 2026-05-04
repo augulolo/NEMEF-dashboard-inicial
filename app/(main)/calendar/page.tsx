@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { PlatformFilter } from "@/components/calendar/platform-filter";
-import { MonthGrid } from "@/components/calendar/month-grid";
+import { MonthGrid, DENSITY_LEGEND } from "@/components/calendar/month-grid";
 import { WeekGrid } from "@/components/calendar/week-grid";
 import { DayDetail } from "@/components/calendar/day-detail";
 import {
@@ -271,13 +271,25 @@ export default function CalendarPage() {
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
           {viewMode === "month" ? (
-            <MonthGrid
-              year={cursor.year}
-              month={cursor.month}
-              items={filtered}
-              today={TODAY}
-              onSelectDay={setSelectedDay}
-            />
+            <div className="flex flex-col gap-2">
+              {/* Leyenda de densidad */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-[11px] text-muted-foreground font-medium">Densidad:</span>
+                {DENSITY_LEGEND.map((d) => (
+                  <span key={d.label} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <span className={`inline-block h-3 w-6 rounded border ${d.bg}`} />
+                    {d.label}
+                  </span>
+                ))}
+              </div>
+              <MonthGrid
+                year={cursor.year}
+                month={cursor.month}
+                items={filtered}
+                today={TODAY}
+                onSelectDay={setSelectedDay}
+              />
+            </div>
           ) : (
             <WeekGrid
               referenceDate={selectedDay}
