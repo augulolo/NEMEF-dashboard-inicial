@@ -216,6 +216,22 @@ export default function AnalyticsPage() {
 
   const maxEngagement = Math.max(...competitors.map((c) => c.engagementRate), 1);
 
+  // Top hashtags from all published posts
+  const topHashtags = (() => {
+    const freq: Record<string, number> = {};
+    for (const p of posts.filter((p) => p.status === "published")) {
+      const matches = p.caption.match(/#[\wáéíóúüñÁÉÍÓÚÜÑ]+/g) ?? [];
+      for (const tag of matches) {
+        const key = tag.toLowerCase();
+        freq[key] = (freq[key] ?? 0) + 1;
+      }
+    }
+    return Object.entries(freq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 12)
+      .map(([tag, count]) => ({ tag, count }));
+  })();
+
   if (loading) {
     return (
       <>
@@ -427,7 +443,7 @@ export default function AnalyticsPage() {
       )}
 
       {/* Distribución de posts */}
-      <div className="grid gap-4 md:grid-cols-2 mb-6">
+      <div className={cn("grid gap-4 mb-6", topHashtags.length > 0 ? "md:grid-cols-3" : "md:grid-cols-2")}>
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -453,6 +469,29 @@ export default function AnalyticsPage() {
             ))}
           </CardContent>
         </Card>
+
+        {topHashtags.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Hashtags más usados
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-1.5">
+                {topHashtags.map(({ tag, count }) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 rounded-full border border-border bg-background/40 px-2.5 py-1 text-xs"
+                  >
+                    <span className="font-medium">{tag}</span>
+                    <span className="text-muted-foreground tabular-nums text-[10px]">×{count}</span>
+                  </span>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Actividad por plataforma */}
