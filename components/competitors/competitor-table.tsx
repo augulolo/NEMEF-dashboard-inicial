@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 
 interface AnalysisResult {
+  mainTopics?: string[];
+  communicationStyle?: string;
   strengths: string[];
   weaknesses: string[];
   contentStrategy: string;
@@ -388,9 +390,31 @@ export function CompetitorTable({
                               Análisis IA
                             </p>
 
+                            {/* Temas principales */}
+                            {aiAnalysis[c.id].mainTopics && aiAnalysis[c.id].mainTopics!.length > 0 && (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Temas principales</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {aiAnalysis[c.id].mainTopics!.map((t, i) => (
+                                    <span key={i} className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs text-primary font-medium">
+                                      {t}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Estilo de comunicación */}
+                            {aiAnalysis[c.id].communicationStyle && (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Estilo de comunicación</p>
+                                <p className="text-sm text-foreground/90 leading-relaxed italic">{aiAnalysis[c.id].communicationStyle}</p>
+                              </div>
+                            )}
+
                             {/* Estrategia */}
                             <div>
-                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Estrategia</p>
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Estrategia de contenido</p>
                               <p className="text-sm text-foreground/90 leading-relaxed">{aiAnalysis[c.id].contentStrategy}</p>
                             </div>
 

@@ -35,6 +35,123 @@ export interface Competitor {
 export const SEED_COMPETITORS: Competitor[] = [];
 
 /**
+ * Creadores verificados de finanzas/economía para sugerir al usuario.
+ * Solo se incluyen handles confirmados o de alta probabilidad.
+ */
+export interface PresetCreator {
+  handle: string;
+  name: string;
+  platform: Platform;
+  region: Region;
+  topics: string; // resumen de qué trata su contenido
+}
+
+export const PRESET_CREATORS: PresetCreator[] = [
+  // ── Argentina — Instagram ──────────────────────────────────────
+  {
+    handle: "@freenance",
+    name: "Freenance",
+    platform: "instagram",
+    region: "argentina",
+    topics: "finanzas personales, inversiones, libertad financiera",
+  },
+  {
+    handle: "@leandrozicarelli",
+    name: "Leandro Zicarelli",
+    platform: "instagram",
+    region: "argentina",
+    topics: "economía macro, mercados, análisis político-económico",
+  },
+  {
+    handle: "@inverarg",
+    name: "Inverarg / Finit",
+    platform: "instagram",
+    region: "argentina",
+    topics: "inversiones Argentina, acciones, CEDEARs, academia Finit",
+  },
+  {
+    handle: "@joveninversor",
+    name: "Joven Inversor",
+    platform: "instagram",
+    region: "argentina",
+    topics: "inversiones, bolsa, educación financiera para jóvenes",
+  },
+  {
+    handle: "@economia.arg",
+    name: "Economía ARG",
+    platform: "instagram",
+    region: "argentina",
+    topics: "economía argentina, inflación, noticias macro",
+  },
+  {
+    handle: "@confinanciero",
+    name: "Con Financiero",
+    platform: "instagram",
+    region: "argentina",
+    topics: "educación financiera, ahorro, inversiones simples",
+  },
+  {
+    handle: "@finanzasenorden",
+    name: "Finanzas en Orden",
+    platform: "instagram",
+    region: "argentina",
+    topics: "finanzas personales, presupuesto, metas financieras",
+  },
+  // ── Mundo — Instagram ──────────────────────────────────────────
+  {
+    handle: "@grahamstephan",
+    name: "Graham Stephan",
+    platform: "instagram",
+    region: "mundo",
+    topics: "real estate, inversiones, libertad financiera, YouTube finance",
+  },
+  {
+    handle: "@andrei_jikh",
+    name: "Andrei Jikh",
+    platform: "instagram",
+    region: "mundo",
+    topics: "inversiones, cripto, finanzas personales, animaciones",
+  },
+  // ── Argentina — YouTube ────────────────────────────────────────
+  {
+    handle: "@freenance",
+    name: "Freenance",
+    platform: "youtube",
+    region: "argentina",
+    topics: "finanzas personales, inversiones, libertad financiera",
+  },
+  {
+    handle: "@inverarg",
+    name: "Inverarg / Finit",
+    platform: "youtube",
+    region: "argentina",
+    topics: "inversiones Argentina, acciones, CEDEARs",
+  },
+  // ── Mundo — YouTube ────────────────────────────────────────────
+  {
+    handle: "@GrahamStephan",
+    name: "Graham Stephan",
+    platform: "youtube",
+    region: "mundo",
+    topics: "real estate, inversiones, finanzas personales",
+  },
+  {
+    handle: "@AndreJikh",
+    name: "Andrei Jikh",
+    platform: "youtube",
+    region: "mundo",
+    topics: "cripto, inversiones, finanzas con animaciones",
+  },
+  {
+    handle: "@MeetKevin",
+    name: "Meet Kevin",
+    platform: "youtube",
+    region: "mundo",
+    topics: "acciones, real estate, análisis de mercado",
+  },
+];
+
+/**
  * Genera la URL de avatar usando unavatar.io (gratis, sin API key).
  * Soporta instagram, twitter, youtube, tiktok.
  */

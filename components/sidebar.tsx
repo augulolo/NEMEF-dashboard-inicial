@@ -52,10 +52,11 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     <aside className="w-64 shrink-0 border-r bg-card h-screen sticky top-0 flex flex-col">
       <div className="p-5 border-b flex items-center gap-3">
         <Logo className="h-9 w-9" />
-        <div>
+        <div className="flex-1 min-w-0">
           <h1 className="text-lg font-bold tracking-tight leading-none">NEMEF</h1>
           <p className="text-[10px] text-muted-foreground mt-1 leading-tight">No es Magia, Es Finanzas</p>
         </div>
+        <NotificationsBell />
       </div>
 
       <nav className="flex-1 p-3 space-y-1">
@@ -96,9 +97,6 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         </button>
       </div>
       <div className="p-3 border-t">
-        <div className="flex items-center justify-between px-3 mb-1">
-          <NotificationsBell />
-        </div>
         <button
           onClick={toggle}
           className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors w-full"

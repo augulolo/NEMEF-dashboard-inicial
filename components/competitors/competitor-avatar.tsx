@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { getAvatarUrl } from "@/lib/competitors";
 import type { Competitor } from "@/lib/competitors";
 
 const COLORS = [
@@ -27,8 +28,12 @@ export function CompetitorAvatar({
   competitor: Pick<Competitor, "name" | "handle" | "platform" | "profilePicUrl">;
   size?: "sm" | "md" | "lg";
 }) {
+  // Try synced pic first, then unavatar.io, then initials
+  const { name, handle, platform, profilePicUrl } = competitor;
+  const unavatarUrl = getAvatarUrl(platform, handle);
+
+  const [src, setSrc] = useState<string>(profilePicUrl || unavatarUrl);
   const [failed, setFailed] = useState(false);
-  const { name, handle, profilePicUrl } = competitor;
 
   const sizeClasses = {
     sm: "h-6 w-6 text-[9px]",
@@ -43,13 +48,23 @@ export function CompetitorAvatar({
     .join("")
     .toUpperCase() || "??";
 
-  if (profilePicUrl && !failed) {
+  const handleError = () => {
+    // If synced pic failed, try unavatar; if unavatar also failed, show initials
+    if (src !== unavatarUrl) {
+      setSrc(unavatarUrl);
+    } else {
+      setFailed(true);
+    }
+  };
+
+  if (!failed) {
     return (
       <img
-        src={profilePicUrl}
+        src={src}
         alt={name || handle}
         className={cn("rounded-full object-cover bg-muted shrink-0 border border-border", sizeClasses)}
-        onError={() => setFailed(true)}
+        onError={handleError}
+        referrerPolicy="no-referrer"
       />
     );
   }
