@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Menu } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 import { Sidebar } from "./sidebar";
 import { Logo } from "./logo";
+import { GlobalSearch } from "./global-search";
 import { cn } from "@/lib/utils";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
@@ -11,6 +12,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
+      <GlobalSearch />
       {/* Overlay móvil */}
       {open && (
         <div
@@ -42,7 +44,14 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             <Menu className="h-5 w-5" />
           </button>
           <Logo className="h-7 w-7" />
-          <span className="font-bold text-sm tracking-tight">NEMEF</span>
+          <span className="font-bold text-sm tracking-tight flex-1">NEMEF</span>
+          <button
+            onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }))}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Buscar"
+          >
+            <Search className="h-5 w-5" />
+          </button>
         </header>
 
         <main className="flex-1 p-4 md:p-8 overflow-auto">

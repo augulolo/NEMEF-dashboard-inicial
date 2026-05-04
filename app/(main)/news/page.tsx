@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { NewsCard } from "@/components/news/news-card";
 import { TopicFilter } from "@/components/news/topic-filter";
 import { CaptionDialog } from "@/components/news/caption-dialog";
-import { RefreshCw, Search, Newspaper, ExternalLink, Sparkles, TrendingUp, X, Film, Layers, Image as ImageIcon, Circle } from "lucide-react";
+import { RefreshCw, Search, Newspaper, ExternalLink, Sparkles, TrendingUp, X, Film, Layers, Image as ImageIcon, Circle, Bookmark } from "lucide-react";
 import { type NewsItem, type NewsTopic, TOPIC_LABELS, TOPIC_STYLES } from "@/lib/news";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
@@ -159,6 +159,11 @@ export default function NewsPage() {
   const [topic, setTopic] = useState<NewsTopic | "all">("all");
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<string | "all">("all");
+  const [showFavsOnly, setShowFavsOnly] = useState(false);
+  const [favIds, setFavIds] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try { return new Set(JSON.parse(localStorage.getItem("nemef_news_favs_v1") ?? "[]")); } catch { return new Set(); }
+  });
 
   // "¿Qué publicar hoy?" state
   const [todayIdea, setTodayIdea] = useState<TodayIdea | null>(null);
@@ -194,12 +199,13 @@ export default function NewsPage() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return items.filter((it) => {
+      if (showFavsOnly && !favIds.has(it.id)) return false;
       if (topic !== "all" && !it.topics.includes(topic)) return false;
       if (sourceFilter !== "all" && it.source !== sourceFilter) return false;
       if (q && !(it.title.toLowerCase().includes(q) || it.summary.toLowerCase().includes(q))) return false;
       return true;
     });
-  }, [items, topic, query]);
+  }, [items, topic, query, showFavsOnly, favIds]);
 
   const sources = useMemo(() => Array.from(new Set(items.map((i) => i.source))).sort(), [items]);
 
@@ -399,6 +405,18 @@ export default function NewsPage() {
           />
         </div>
         <TopicFilter active={topic} onChange={setTopic} counts={counts} />
+        <button
+          onClick={() => setShowFavsOnly((v) => !v)}
+          className={cn(
+            "shrink-0 inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors h-10",
+            showFavsOnly
+              ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
+              : "border-border text-muted-foreground hover:bg-accent"
+          )}
+        >
+          <Bookmark className="h-3.5 w-3.5" />
+          Guardadas{favIds.size > 0 && ` (${favIds.size})`}
+        </button>
         {sources.length > 1 && (
           <select
             value={sourceFilter}
@@ -462,7 +480,17 @@ export default function NewsPage() {
           {filtered.length > 1 && (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {filtered.slice(1).map((it) => (
-                <NewsCard key={it.id} item={it} onCreatePost={handleCreatePost} />
+                <NewsCard
+                  key={it.id}
+                  item={it}
+                  onCreatePost={handleCreatePost}
+                  isFavorite={favIds.has(it.id)}
+                  onFavoriteChange={(id, fav) => setFavIds((prev) => {
+                    const next = new Set(prev);
+                    if (fav) next.add(id); else next.delete(id);
+                    return next;
+                  })}
+                />
               ))}
             </div>
           )}

@@ -4,10 +4,12 @@ import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown,
-  BookOpen, Target, Lightbulb, FileText, Link2, Edit3,
-  CheckCircle2, Save, X, ExternalLink, GripVertical,
-  BookMarked, Layers, Clock,
+  BookOpen, Target, Lightbulb, FileText, Edit3,
+  CheckCircle2, Save, X, ExternalLink,
+  BookMarked, Layers, Clock, Instagram, Download,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -501,6 +503,72 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     router.push("/projects");
   };
 
+  const exportMarkdown = () => {
+    if (!project) return;
+    const lines: string[] = [
+      `# ${project.coverEmoji ?? "📚"} ${project.title}`,
+      "",
+      `**Temática:** ${project.topic || "—"}`,
+      `**Plataforma:** ${PLATFORM_LABELS[project.platform]}`,
+      `**Estado:** ${STATUS_LABELS[project.status]}`,
+      project.description ? `\n${project.description}` : "",
+      "",
+      "---",
+      "",
+    ];
+
+    for (const ch of project.chapters) {
+      lines.push(`## Capítulo ${ch.order}: ${ch.title || "Sin título"}`);
+      lines.push(`**Estado:** ${CHAPTER_STATUS_LABELS[ch.status]}`);
+      if (ch.estimatedDuration) lines.push(`**Duración estimada:** ${ch.estimatedDuration}`);
+      if (ch.targetAudience) lines.push(`**Audiencia:** ${ch.targetAudience}`);
+      if (ch.summary) { lines.push(""); lines.push(ch.summary); }
+
+      if (ch.learningObjectives.length > 0) {
+        lines.push(""); lines.push("### Objetivos de aprendizaje");
+        for (const obj of ch.learningObjectives)
+          lines.push(`- [${OBJECTIVE_TYPE_LABELS[obj.type]}] ${obj.text}`);
+      }
+
+      if (ch.keyConcepts.length > 0) {
+        lines.push(""); lines.push("### Conceptos clave");
+        for (const c of ch.keyConcepts) {
+          lines.push(`\n**${c.term}:** ${c.definition}`);
+          if (c.example) lines.push(`> Ejemplo: ${c.example}`);
+        }
+      }
+
+      if (ch.scriptNotes) {
+        lines.push(""); lines.push("### Notas de guion");
+        lines.push("```"); lines.push(ch.scriptNotes); lines.push("```");
+      }
+
+      if (ch.bibliography.length > 0) {
+        lines.push(""); lines.push("### Bibliografía");
+        for (const ref of ch.bibliography) {
+          const parts = [`**${ref.title}**`];
+          if (ref.author) parts.push(`— ${ref.author}`);
+          if (ref.year) parts.push(`(${ref.year})`);
+          if (ref.publisher) parts.push(`*${ref.publisher}*`);
+          if (ref.url) parts.push(`[Ver](${ref.url})`);
+          lines.push(`- ${parts.join(" ")}`);
+          if (ref.notes) lines.push(`  > ${ref.notes}`);
+        }
+      }
+
+      lines.push(""); lines.push("---"); lines.push("");
+    }
+
+    const md = lines.join("\n");
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${project.title.replace(/[^a-z0-9]/gi, "-").toLowerCase()}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (!project) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -638,6 +706,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             </div>
           </div>
           <div className="flex gap-2 shrink-0">
+            <Button variant="outline" size="sm" onClick={exportMarkdown} title="Exportar como Markdown">
+              <Download className="h-3.5 w-3.5" />
+              .md
+            </Button>
             <Button variant="outline" size="sm" onClick={startEditProject}>
               <Edit3 className="h-3.5 w-3.5" />
               Editar
@@ -779,6 +851,30 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
                 {/* Acciones */}
                 <div className="flex items-center gap-1.5 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      if (!chapter.title) return;
+                      const caption = [
+                        chapter.title,
+                        chapter.summary ? `\n${chapter.summary}` : "",
+                        chapter.scriptNotes ? `\n\n${chapter.scriptNotes.slice(0, 300)}` : "",
+                      ].join("").trim();
+                      const { error } = await supabase.from("posts").insert({
+                        caption: caption.slice(0, 2200),
+                        type: "carousel",
+                        status: "draft",
+                        scheduled_date: null,
+                      });
+                      if (!error) toast("Borrador creado en Instagram ✓");
+                      else toast("Error al crear borrador", "error");
+                    }}
+                    className="h-8 px-2.5 text-pink-400 border-pink-500/30 hover:bg-pink-500/10"
+                    title="Crear borrador de Instagram con el contenido de este capítulo"
+                  >
+                    <Instagram className="h-3.5 w-3.5" />
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"

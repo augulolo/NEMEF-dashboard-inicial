@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, Calendar, Instagram, Newspaper, Target, LayoutDashboard, LogOut, Sun, Moon, Lightbulb, StickyNote, Zap, FileText, BookOpen } from "lucide-react";
+import { BarChart3, Calendar, Instagram, Newspaper, Target, LayoutDashboard, LogOut, Sun, Moon, Lightbulb, StickyNote, Zap, FileText, BookOpen, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
 import { createClient } from "@/lib/supabase";
 import { useTheme } from "@/components/theme-provider";
 import { useEffect, useState } from "react";
+import { NotificationsBell } from "@/components/notifications-bell";
 
 const nav = [
   { href: "/", label: "Inicio", icon: LayoutDashboard },
@@ -84,7 +85,20 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         })}
       </nav>
 
+      <div className="px-3 pt-3 pb-1">
+        <button
+          onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }))}
+          className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors w-full"
+        >
+          <Search className="h-4 w-4" />
+          <span className="flex-1 text-left">Buscar</span>
+          <kbd className="text-[10px] border rounded px-1.5 py-0.5 opacity-60">⌘K</kbd>
+        </button>
+      </div>
       <div className="p-3 border-t">
+        <div className="flex items-center justify-between px-3 mb-1">
+          <NotificationsBell />
+        </div>
         <button
           onClick={toggle}
           className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors w-full"

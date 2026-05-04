@@ -8,6 +8,7 @@ import { PostColumn } from "@/components/instagram/post-column";
 import { PostList } from "@/components/instagram/post-list";
 import { Calendar, FileText, CheckCircle2, Inbox, AlertCircle, Search, X, LayoutGrid, List, Download } from "lucide-react";
 import { POST_STATUSES, POST_TYPES, TYPE_LABELS, SEED_POSTS, type Post, type PostStatus, type PostType } from "@/lib/posts";
+
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -129,6 +130,12 @@ export default function InstagramPage() {
     } else {
       toast("Error al eliminar el post", "error");
     }
+  };
+
+  const handleDrop = async (postId: string, targetStatus: PostStatus) => {
+    const post = posts.find((p) => p.id === postId);
+    if (!post || post.status === targetStatus) return;
+    await handleEdit({ ...post, status: targetStatus });
   };
 
   const handleDuplicate = async (post: Post) => {
@@ -306,7 +313,7 @@ export default function InstagramPage() {
       ) : view === "kanban" ? (
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
           {POST_STATUSES.map((status) => (
-            <PostColumn key={status} status={status} posts={grouped[status]} onDelete={handleDelete} onEdit={handleEdit} onDuplicate={handleDuplicate} />
+            <PostColumn key={status} status={status} posts={grouped[status]} onDelete={handleDelete} onEdit={handleEdit} onDuplicate={handleDuplicate} onDrop={handleDrop} />
           ))}
         </div>
       ) : (

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { PlatformFilter } from "@/components/calendar/platform-filter";
 import { MonthGrid } from "@/components/calendar/month-grid";
+import { WeekGrid } from "@/components/calendar/week-grid";
 import { DayDetail } from "@/components/calendar/day-detail";
 import {
   PLATFORMS,
@@ -60,6 +61,7 @@ export default function CalendarPage() {
   const [activePlatforms, setActivePlatforms] = useState<Set<Platform>>(new Set(PLATFORMS));
   const [statusFilter, setStatusFilter] = useState<CalendarStatus | "all">("all");
   const [selectedDay, setSelectedDay] = useState<string>(TODAY);
+  const [viewMode, setViewMode] = useState<"month" | "week">("month");
 
   useEffect(() => {
     Promise.all([
@@ -209,6 +211,17 @@ export default function CalendarPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Vista mes / semana */}
+          <div className="flex items-center gap-1 rounded-md border p-1">
+            <button
+              onClick={() => setViewMode("month")}
+              className={cn("px-3 py-1 text-xs rounded transition-colors", viewMode === "month" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+            >Mes</button>
+            <button
+              onClick={() => setViewMode("week")}
+              className={cn("px-3 py-1 text-xs rounded transition-colors", viewMode === "week" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+            >Semana</button>
+          </div>
           <div className="flex items-center gap-1 rounded-md border p-1">
             {STATUSES.map((s) => (
               <button
@@ -257,13 +270,22 @@ export default function CalendarPage() {
         <div className="text-sm text-muted-foreground">Cargando calendario…</div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-          <MonthGrid
-            year={cursor.year}
-            month={cursor.month}
-            items={filtered}
-            today={TODAY}
-            onSelectDay={setSelectedDay}
-          />
+          {viewMode === "month" ? (
+            <MonthGrid
+              year={cursor.year}
+              month={cursor.month}
+              items={filtered}
+              today={TODAY}
+              onSelectDay={setSelectedDay}
+            />
+          ) : (
+            <WeekGrid
+              referenceDate={selectedDay}
+              items={filtered}
+              selectedDay={selectedDay}
+              onSelectDay={setSelectedDay}
+            />
+          )}
           <DayDetail date={selectedDay} items={dayItems} onAdd={handleAddItem} />
         </div>
       )}

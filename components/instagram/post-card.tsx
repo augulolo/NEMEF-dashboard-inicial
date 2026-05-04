@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import {
   Image as ImageIcon, Film, Circle, Layers, Calendar,
-  Trash2, Pencil, Check, X, Copy, CheckCircle2, Repeat2, Star, RefreshCw, Sparkles, Files,
+  Trash2, Pencil, Check, X, Copy, CheckCircle2, Repeat2, Star, RefreshCw, Sparkles, Files, Expand,
 } from "lucide-react";
 import type { Post, PostType, PostStatus } from "@/lib/posts";
 import { TYPE_LABELS, STATUS_LABELS, POST_TYPES, POST_STATUSES } from "@/lib/posts";
@@ -42,6 +42,7 @@ export function PostCard({
   const [status, setStatus] = useState<PostStatus>(post.status);
   const [scheduledDate, setScheduledDate] = useState(post.scheduledDate ?? "");
   const [copied, setCopied] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const [repurposing, setRepurposing] = useState(false);
   const [score, setScore] = useState<{ value: number; tip: string } | null>(null);
   const [scoring, setScoring] = useState(false);
@@ -205,6 +206,61 @@ export function PostCard({
 
   return (
     <>
+      {/* Modal de lectura completa */}
+      {previewing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setPreviewing(false)}>
+          <div className="w-full max-w-lg rounded-xl border bg-card shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Icon className="h-4 w-4" />
+                <span>{TYPE_LABELS[post.type]}</span>
+                {post.scheduledDate && (
+                  <>
+                    <span>·</span>
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span>{new Date(post.scheduledDate + "T12:00:00").toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "short" })}</span>
+                  </>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-muted-foreground tabular-nums">{post.caption.length}/2200</span>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(post.caption).catch(() => {}); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  title="Copiar"
+                >
+                  {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                </button>
+                <button onClick={() => setPreviewing(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div className="p-5 max-h-[70vh] overflow-y-auto">
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{post.caption}</p>
+            </div>
+            <div className="p-4 border-t flex items-center justify-between gap-2">
+              <span className={cn("text-xs font-medium px-2 py-1 rounded-full border",
+                isOverdue ? "text-amber-400 border-amber-500/30 bg-amber-500/10" :
+                isDueToday ? "text-blue-400 border-blue-500/30 bg-blue-500/10" :
+                "text-muted-foreground border-border"
+              )}>
+                {isOverdue ? "Atrasado" : isDueToday ? "Para hoy" : isDueTomorrow ? "Para mañana" : STATUS_LABELS[post.status]}
+              </span>
+              <div className="flex gap-2">
+                <button onClick={() => { setPreviewing(false); setEditing(true); }} className="text-xs text-primary hover:underline flex items-center gap-1">
+                  <Pencil className="h-3.5 w-3.5" /> Editar
+                </button>
+                {post.status === "scheduled" && (
+                  <button onClick={() => { handlePublish(); setPreviewing(false); }} className="text-xs text-emerald-400 hover:underline flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Marcar publicado
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {repurposing && (
         <RepurposeDialog
           caption={post.caption}
@@ -319,7 +375,20 @@ export function PostCard({
           </div>
 
           {/* Caption */}
-          <p className="text-sm leading-relaxed line-clamp-4">{post.caption}</p>
+          <button
+            onClick={() => setPreviewing(true)}
+            className="text-left w-full group/caption"
+            title="Clic para leer completo"
+          >
+            <p className="text-sm leading-relaxed line-clamp-4 group-hover/caption:text-foreground transition-colors">
+              {post.caption}
+            </p>
+            {post.caption.length > 200 && (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1">
+                <Expand className="h-3 w-3" /> Leer completo
+              </span>
+            )}
+          </button>
 
           {/* Score tip */}
           {score && (
