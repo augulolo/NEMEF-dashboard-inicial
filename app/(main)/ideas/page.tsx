@@ -485,11 +485,22 @@ export default function IdeasPage() {
                     value={briefCaptionValue}
                     onChange={(e) => setBriefCaptionValue(e.target.value)}
                     rows={8}
-                    className="w-full rounded-lg border bg-background/40 px-3 py-2.5 text-sm leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-primary/50 text-foreground"
+                    className={cn(
+                      "w-full rounded-lg border bg-background/40 px-3 py-2.5 text-sm leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-primary/50 text-foreground",
+                      briefCaptionValue.length > 2200 && "border-red-500/60"
+                    )}
                   />
-                  <p className="text-[11px] text-muted-foreground mt-1.5 text-right tabular-nums">
-                    {briefCaptionValue.length} caracteres
-                  </p>
+                  <div className="flex items-center justify-end gap-2 mt-1.5">
+                    {briefCaptionValue.length > 125 && briefCaptionValue.length <= 2200 && (
+                      <span className="text-[11px] text-amber-400/80">corta en 125</span>
+                    )}
+                    <span className={cn(
+                      "text-[11px] tabular-nums",
+                      briefCaptionValue.length > 2200 ? "text-red-400 font-semibold" : briefCaptionValue.length > 1980 ? "text-amber-400" : "text-muted-foreground"
+                    )}>
+                      {briefCaptionValue.length}/2200
+                    </span>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -501,15 +512,28 @@ export default function IdeasPage() {
                       <Hash className="h-3.5 w-3.5" />
                       Hashtags ({activeHashtags.length})
                     </p>
-                    <button
-                      onClick={handleCopyHashtags}
-                      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {copiedHashtags
-                        ? <><Check className="h-3.5 w-3.5 text-emerald-400" /> Copiados</>
-                        : <><Copy className="h-3.5 w-3.5" /> Copiar todos</>
-                      }
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => {
+                          const tags = "\n\n" + activeHashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" ");
+                          setBriefCaptionValue((prev) => prev + tags);
+                          setActiveHashtags([]);
+                        }}
+                        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                        title="Agregar hashtags al final del caption"
+                      >
+                        <ArrowRight className="h-3.5 w-3.5" /> Al caption
+                      </button>
+                      <button
+                        onClick={handleCopyHashtags}
+                        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {copiedHashtags
+                          ? <><Check className="h-3.5 w-3.5 text-emerald-400" /> Copiados</>
+                          : <><Copy className="h-3.5 w-3.5" /> Copiar</>
+                        }
+                      </button>
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {activeHashtags.map((tag) => (
