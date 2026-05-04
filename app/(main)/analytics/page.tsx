@@ -188,6 +188,10 @@ export default function AnalyticsPage() {
 
   const maxWeekly = Math.max(...weeklyData.map((w) => w.count), 1);
 
+  // Consistency score: % of weeks with at least 1 post (last 8 weeks)
+  const weeksWithPost = weeklyData.filter((w) => w.count > 0).length;
+  const consistencyScore = Math.round((weeksWithPost / weeklyData.length) * 100);
+
   // Publicaciones por día de la semana
   const DAYS_ES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
   const byDayOfWeek = DAYS_ES.map((label, idx) => ({
@@ -383,10 +387,19 @@ export default function AnalyticsPage() {
 
       {/* Tendencia semanal de publicación */}
       <Card className="mb-6">
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Posts publicados por semana (últimas 8 semanas)
           </CardTitle>
+          <div className="flex items-center gap-1.5 text-xs shrink-0">
+            <span className="text-muted-foreground">Consistencia:</span>
+            <span className={cn(
+              "font-semibold tabular-nums",
+              consistencyScore >= 75 ? "text-emerald-400" : consistencyScore >= 50 ? "text-amber-400" : "text-muted-foreground"
+            )}>
+              {consistencyScore}%
+            </span>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex items-end gap-2 h-24">
