@@ -98,7 +98,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           <LogOut className="h-4 w-4" />
           Cerrar sesión
         </button>
-        <p className="text-xs text-muted-foreground text-center mt-2">v0.4.0</p>
+        <p className="text-xs text-muted-foreground text-center mt-2">v0.5.0</p>
       </div>
     </aside>
   );
