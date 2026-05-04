@@ -27,6 +27,8 @@ export function NotificationsBell() {
   const [dismissed, setDismissed] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem("nemef_notif_dismissed") ?? "[]")); } catch { return new Set(); }
   });
+  const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -83,13 +85,35 @@ export function NotificationsBell() {
     });
   }, []);
 
+  // Close on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false);
+      if (
+        panelRef.current && !panelRef.current.contains(e.target as Node) &&
+        buttonRef.current && !buttonRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
     };
     if (open) document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
+
+  const handleToggle = () => {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const PANEL_WIDTH = 320;
+      const MARGIN = 8;
+
+      // Position below the button, aligned to its left edge,
+      // but clamp so the panel never goes off-screen to the right
+      const left = Math.min(rect.left, window.innerWidth - PANEL_WIDTH - MARGIN);
+      const top = rect.bottom + MARGIN;
+
+      setPanelStyle({ top, left, width: PANEL_WIDTH });
+    }
+    setOpen((v) => !v);
+  };
 
   const dismiss = (id: string) => {
     const next = new Set(dismissed);
@@ -105,10 +129,11 @@ export function NotificationsBell() {
   if (notifications.length === 0) return null;
 
   return (
-    <div className="relative" ref={panelRef}>
+    <>
       <button
-        onClick={() => setOpen((v) => !v)}
-        className="relative p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+        ref={buttonRef}
+        onClick={handleToggle}
+        className="relative p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
         aria-label="Notificaciones"
       >
         <Bell className="h-4 w-4" />
@@ -123,10 +148,29 @@ export function NotificationsBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-10 w-80 rounded-xl border bg-card shadow-xl z-50 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b">
-            <h3 className="text-sm font-semibold">Notificaciones</h3>
-            <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+        <div
+          ref={panelRef}
+          className="fixed rounded-xl border bg-card shadow-2xl z-[200] overflow-hidden"
+          style={panelStyle}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/20">
+            <div className="flex items-center gap-2">
+              <Bell className="h-3.5 w-3.5 text-primary" />
+              <h3 className="text-sm font-semibold">Notificaciones</h3>
+              {badge > 0 && (
+                <span className={cn(
+                  "h-4 min-w-[16px] rounded-full text-[10px] font-bold flex items-center justify-center px-1 tabular-nums",
+                  overdueCount > 0 ? "bg-amber-500/20 text-amber-400" : "bg-primary/20 text-primary"
+                )}>
+                  {badge}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setOpen(false)}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -137,7 +181,7 @@ export function NotificationsBell() {
               <p className="text-sm text-muted-foreground">Todo al día</p>
             </div>
           ) : (
-            <ul className="divide-y max-h-72 overflow-y-auto">
+            <ul className="divide-y max-h-80 overflow-y-auto">
               {visible.map((n) => (
                 <li key={n.id} className="flex items-start gap-3 px-4 py-3 hover:bg-accent/50 transition-colors">
                   <div className="shrink-0 mt-0.5">
@@ -153,18 +197,20 @@ export function NotificationsBell() {
                   </div>
                   <Link href={n.href} onClick={() => setOpen(false)} className="flex-1 min-w-0">
                     <p className={cn(
-                      "text-xs font-medium",
-                      n.type === "overdue" ? "text-amber-300" :
-                      n.type === "competitor_up" ? "text-emerald-300" :
+                      "text-xs font-semibold",
+                      n.type === "overdue"         ? "text-amber-300" :
+                      n.type === "competitor_up"   ? "text-emerald-300" :
                       n.type === "competitor_down" ? "text-red-300" :
-                      "text-foreground"
-                    )}>{n.message}</p>
+                                                     "text-foreground"
+                    )}>
+                      {n.message}
+                    </p>
                     {n.detail && (
                       <p className="text-xs text-muted-foreground truncate mt-0.5">{n.detail}</p>
                     )}
                   </Link>
                   <button
-                    onClick={() => dismiss(n.id)}
+                    onClick={(e) => { e.preventDefault(); dismiss(n.id); }}
                     className="shrink-0 text-muted-foreground hover:text-foreground transition-colors mt-0.5"
                     title="Descartar"
                   >
@@ -174,8 +220,20 @@ export function NotificationsBell() {
               ))}
             </ul>
           )}
+
+          {/* Footer — dismiss all */}
+          {visible.length > 1 && (
+            <div className="px-4 py-2 border-t bg-muted/10">
+              <button
+                onClick={() => visible.forEach((n) => dismiss(n.id))}
+                className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Descartar todas
+              </button>
+            </div>
+          )}
         </div>
       )}
-    </div>
+    </>
   );
 }

@@ -13,7 +13,9 @@ import { CompetitorAvatar } from "@/components/competitors/competitor-avatar";
 
 function serverGrowthPct(history: number[]): number {
   if (!history || history.length < 2) return 0;
-  const first = history[0], last = history[history.length - 1];
+  const real = history.filter((v) => v > 0);
+  if (real.length < 2) return 0;
+  const first = real[0], last = real[real.length - 1];
   if (!first || first === 0) return 0;
   return ((last - first) / first) * 100;
 }

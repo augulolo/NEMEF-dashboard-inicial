@@ -166,9 +166,11 @@ export function getAvatarUrl(platform: Platform, handle: string): string {
 }
 
 export function growthPct(history: number[]): number {
-  if (history.length < 2) return 0;
-  const first = history[0];
-  const last = history[history.length - 1];
+  // Filter out zeros from the start (seed artifacts before first real sync)
+  const real = history.filter((v) => v > 0);
+  if (real.length < 2) return 0;
+  const first = real[0];
+  const last = real[real.length - 1];
   if (first === 0) return 0;
   return ((last - first) / first) * 100;
 }
