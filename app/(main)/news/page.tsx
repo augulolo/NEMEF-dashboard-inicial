@@ -8,8 +8,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { NewsCard } from "@/components/news/news-card";
 import { TopicFilter } from "@/components/news/topic-filter";
 import { CaptionDialog } from "@/components/news/caption-dialog";
-import { RefreshCw, Search, Newspaper, ExternalLink, Sparkles, TrendingUp, X, Film, Layers, Image as ImageIcon, Circle, Bookmark } from "lucide-react";
+import { RefreshCw, Search, Newspaper, ExternalLink, Sparkles, TrendingUp, X, Film, Layers, Image as ImageIcon, Circle, Bookmark, Rss } from "lucide-react";
 import { type NewsItem, type NewsTopic, TOPIC_LABELS, TOPIC_STYLES } from "@/lib/news";
+import { FeedManager, loadCustomFeeds } from "@/components/news/feed-manager";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/lib/toast";
@@ -164,6 +165,7 @@ export default function NewsPage() {
     if (typeof window === "undefined") return new Set();
     try { return new Set(JSON.parse(localStorage.getItem("nemef_news_favs_v1") ?? "[]")); } catch { return new Set(); }
   });
+  const [showFeedManager, setShowFeedManager] = useState(false);
 
   // "¿Qué publicar hoy?" state
   const [todayIdea, setTodayIdea] = useState<TodayIdea | null>(null);
@@ -174,7 +176,20 @@ export default function NewsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/news", { cache: "no-store" });
+      let disabledUrls: string[] = [];
+      let customFeeds: { name: string; url: string }[] = [];
+      if (typeof window !== "undefined") {
+        try { disabledUrls = JSON.parse(localStorage.getItem("nemef_disabled_feeds_v1") ?? "[]"); } catch { /* */ }
+        customFeeds = loadCustomFeeds();
+      }
+      const hasCustom = disabledUrls.length > 0 || customFeeds.length > 0;
+      const res = hasCustom
+        ? await fetch("/api/news", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ disabledUrls, customFeeds }),
+          })
+        : await fetch("/api/news", { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setItems(data.items ?? []);
@@ -268,6 +283,13 @@ export default function NewsPage() {
 
   return (
     <>
+      {showFeedManager && (
+        <FeedManager
+          onClose={() => setShowFeedManager(false)}
+          onSave={() => { setShowFeedManager(false); load(); }}
+        />
+      )}
+
       <div className="flex items-start justify-between gap-4 mb-8">
         <PageHeader
           title="Noticias"
@@ -286,6 +308,10 @@ export default function NewsPage() {
               <Sparkles className="h-4 w-4 mr-2" />
             )}
             {loadingTodayIdea ? "Generando…" : "¿Qué publicar hoy?"}
+          </Button>
+          <Button variant="outline" onClick={() => setShowFeedManager(true)}>
+            <Rss className="h-4 w-4 mr-2" />
+            Fuentes RSS
           </Button>
           <Button variant="outline" onClick={load} disabled={loading}>
             <RefreshCw className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />

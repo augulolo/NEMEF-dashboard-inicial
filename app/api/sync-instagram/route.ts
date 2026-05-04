@@ -24,12 +24,6 @@ interface ApifyProfile {
 export async function POST() {
   const supabase = await createServerSupabaseClient();
 
-  // Verificar sesión
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-
   // Traer creadores de Instagram desde Supabase
   const { data: igComps, error: dbErr } = await supabase
     .from("competitors")

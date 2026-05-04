@@ -27,9 +27,6 @@ interface ApifyTWProfile {
 
 export async function POST(req: Request) {
   const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-
   const { handle, platform, currentHistory } = await req.json();
   if (!handle || !platform) {
     return NextResponse.json({ error: "Faltan parámetros" }, { status: 400 });

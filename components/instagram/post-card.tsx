@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import {
   Image as ImageIcon, Film, Circle, Layers, Calendar,
-  Trash2, Pencil, Check, X, Copy, CheckCircle2, Repeat2, Star, RefreshCw, Sparkles, Files, Expand,
+  Trash2, Pencil, Check, X, Copy, CheckCircle2, Repeat2, Star, RefreshCw, Sparkles, Files, Expand, History, RotateCcw,
 } from "lucide-react";
 import type { Post, PostType, PostStatus } from "@/lib/posts";
 import { TYPE_LABELS, STATUS_LABELS, POST_TYPES, POST_STATUSES } from "@/lib/posts";
@@ -24,6 +24,32 @@ const typeIcon = {
 };
 
 const TODAY = new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+
+const HISTORY_KEY = "nemef_post_history_v1";
+
+interface HistoryEntry {
+  savedAt: string;
+  caption: string;
+  type: Post["type"];
+  status: PostStatus;
+  scheduledDate?: string;
+}
+
+function loadHistory(postId: string): HistoryEntry[] {
+  try {
+    const all = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "{}");
+    return all[postId] ?? [];
+  } catch { return []; }
+}
+
+function pushHistory(postId: string, snapshot: HistoryEntry) {
+  try {
+    const all = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "{}");
+    const prev: HistoryEntry[] = all[postId] ?? [];
+    all[postId] = [...prev, snapshot].slice(-10); // keep last 10
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(all));
+  } catch { /* */ }
+}
 
 export function PostCard({
   post,
@@ -47,6 +73,8 @@ export function PostCard({
   const [score, setScore] = useState<{ value: number; tip: string } | null>(null);
   const [scoring, setScoring] = useState(false);
   const [improving, setImproving] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   const handleScore = async () => {
     if (scoring) return;
@@ -106,8 +134,31 @@ export function PostCard({
   const isDueTomorrow = post.status === "scheduled" && post.scheduledDate === TOMORROW;
 
   const handleSave = () => {
+    // Save snapshot of current version before overwriting
+    pushHistory(post.id, {
+      savedAt: new Date().toISOString(),
+      caption: post.caption,
+      type: post.type,
+      status: post.status,
+      scheduledDate: post.scheduledDate,
+    });
     onEdit({ ...post, caption, type, status, scheduledDate: scheduledDate || undefined });
     setEditing(false);
+  };
+
+  const openHistory = () => {
+    setHistory(loadHistory(post.id));
+    setShowHistory(true);
+    setEditing(false);
+  };
+
+  const restoreVersion = (entry: HistoryEntry) => {
+    setCaption(entry.caption);
+    setType(entry.type);
+    setStatus(entry.status);
+    setScheduledDate(entry.scheduledDate ?? "");
+    setShowHistory(false);
+    setEditing(true);
   };
 
   const handleCancel = () => {
@@ -198,6 +249,15 @@ export function PostCard({
             <Button size="sm" variant="outline" onClick={handleCancel} className="flex-1">
               <X className="h-3.5 w-3.5 mr-1" /> Cancelar
             </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={openHistory}
+              title="Ver historial de versiones"
+              className="shrink-0 px-2 text-muted-foreground hover:text-foreground"
+            >
+              <History className="h-3.5 w-3.5" />
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -258,6 +318,49 @@ export function PostCard({
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {showHistory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setShowHistory(false)}>
+          <div className="w-full max-w-md rounded-xl border bg-card shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center gap-2">
+                <History className="h-4 w-4 text-primary" />
+                <h3 className="font-semibold text-sm">Historial de versiones</h3>
+              </div>
+              <button onClick={() => setShowHistory(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {history.length === 0 ? (
+              <div className="p-8 text-center text-sm text-muted-foreground">
+                Todavía no hay versiones guardadas para este post.
+              </div>
+            ) : (
+              <ul className="divide-y max-h-96 overflow-y-auto">
+                {[...history].reverse().map((entry, i) => (
+                  <li key={i} className="p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-muted-foreground">
+                        {new Date(entry.savedAt).toLocaleString("es-AR", {
+                          day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+                        })}
+                      </span>
+                      <button
+                        onClick={() => restoreVersion(entry)}
+                        className="inline-flex items-center gap-1 text-xs text-primary border border-primary/30 rounded px-2 py-0.5 hover:bg-primary/10 transition-colors"
+                      >
+                        <RotateCcw className="h-3 w-3" /> Restaurar
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-wrap">
+                      {entry.caption}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       )}

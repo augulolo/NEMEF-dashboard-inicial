@@ -43,9 +43,6 @@ interface ApifyYTItem {
 
 export async function POST(req: Request) {
   const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-
   const { id, handle, platform } = await req.json();
   if (!id || !handle || !platform) {
     return NextResponse.json({ error: "Faltan parámetros" }, { status: 400 });

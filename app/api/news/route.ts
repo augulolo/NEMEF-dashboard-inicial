@@ -120,9 +120,29 @@ async function fetchFeed(url: string, source: string): Promise<NewsItem[]> {
   }
 }
 
-export async function GET() {
-  const results = await Promise.all(FEEDS.map((f) => fetchFeed(f.url, f.name)));
+async function buildAndFetch(
+  disabledUrls: string[] = [],
+  customFeeds: { name: string; url: string }[] = []
+) {
+  const activeFeed = FEEDS.filter((f) => !disabledUrls.includes(f.url));
+  const allFeeds = [...activeFeed, ...customFeeds];
+  const results = await Promise.all(allFeeds.map((f) => fetchFeed(f.url, f.name)));
   const all = results.flat();
   all.sort((a, b) => (b.publishedAt || "").localeCompare(a.publishedAt || ""));
-  return NextResponse.json({ items: all, fetchedAt: new Date().toISOString() });
+  return all;
+}
+
+export async function GET() {
+  const items = await buildAndFetch();
+  return NextResponse.json({ items, fetchedAt: new Date().toISOString() });
+}
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json() as { disabledUrls?: string[]; customFeeds?: { name: string; url: string }[] };
+    const items = await buildAndFetch(body.disabledUrls ?? [], body.customFeeds ?? []);
+    return NextResponse.json({ items, fetchedAt: new Date().toISOString() });
+  } catch {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
 }

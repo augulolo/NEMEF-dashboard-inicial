@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bell, Calendar, AlertCircle, CheckCircle2, X } from "lucide-react";
+import { Bell, Calendar, AlertCircle, CheckCircle2, X, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 
 interface Notification {
   id: string;
-  type: "overdue" | "today" | "tomorrow";
+  type: "overdue" | "today" | "tomorrow" | "competitor_up" | "competitor_down";
   message: string;
   detail?: string;
   href: string;
@@ -33,27 +33,54 @@ export function NotificationsBell() {
     const today = TODAY();
     const tomorrow = TOMORROW();
 
-    supabase
-      .from("posts")
-      .select("id, caption, scheduled_date, status")
-      .eq("status", "scheduled")
-      .lte("scheduled_date", tomorrow)
-      .order("scheduled_date")
-      .then(({ data }) => {
-        const notifs: Notification[] = [];
-        for (const p of data ?? []) {
-          const date = p.scheduled_date as string;
-          const preview = (p.caption as string).slice(0, 50) + ((p.caption as string).length > 50 ? "…" : "");
-          if (date < today) {
-            notifs.push({ id: `overdue-${p.id}`, type: "overdue", message: "Post atrasado", detail: preview, href: "/instagram" });
-          } else if (date === today) {
-            notifs.push({ id: `today-${p.id}`, type: "today", message: "Para publicar hoy", detail: preview, href: "/instagram" });
-          } else if (date === tomorrow) {
-            notifs.push({ id: `tomorrow-${p.id}`, type: "tomorrow", message: "Para mañana", detail: preview, href: "/instagram" });
-          }
+    Promise.all([
+      supabase
+        .from("posts")
+        .select("id, caption, scheduled_date, status")
+        .eq("status", "scheduled")
+        .lte("scheduled_date", tomorrow)
+        .order("scheduled_date"),
+      supabase
+        .from("competitors")
+        .select("id, name, handle, followers_history"),
+    ]).then(([postsRes, compRes]) => {
+      const notifs: Notification[] = [];
+
+      // Post alerts
+      for (const p of postsRes.data ?? []) {
+        const date = p.scheduled_date as string;
+        const preview = (p.caption as string).slice(0, 50) + ((p.caption as string).length > 50 ? "…" : "");
+        if (date < today) {
+          notifs.push({ id: `overdue-${p.id}`, type: "overdue", message: "Post atrasado", detail: preview, href: "/instagram" });
+        } else if (date === today) {
+          notifs.push({ id: `today-${p.id}`, type: "today", message: "Para publicar hoy", detail: preview, href: "/instagram" });
+        } else if (date === tomorrow) {
+          notifs.push({ id: `tomorrow-${p.id}`, type: "tomorrow", message: "Para mañana", detail: preview, href: "/instagram" });
         }
-        setNotifications(notifs);
-      });
+      }
+
+      // Competitor growth alerts (>5% change between last 2 sync points)
+      for (const c of compRes.data ?? []) {
+        const hist = Array.isArray(c.followers_history) ? c.followers_history as number[] : [];
+        if (hist.length < 2) continue;
+        const prev = hist[hist.length - 2];
+        const last = hist[hist.length - 1];
+        if (!prev || prev === 0) continue;
+        const pct = ((last - prev) / prev) * 100;
+        if (Math.abs(pct) >= 5) {
+          const isUp = pct > 0;
+          notifs.push({
+            id: `comp-${c.id}-${last}`,
+            type: isUp ? "competitor_up" : "competitor_down",
+            message: `${c.name} ${isUp ? "creció" : "bajó"} ${Math.abs(pct).toFixed(1)}%`,
+            detail: `@${c.handle} — ${last.toLocaleString("es-AR")} seguidores`,
+            href: "/competitors",
+          });
+        }
+      }
+
+      setNotifications(notifs);
+    });
   }, []);
 
   useEffect(() => {
@@ -116,6 +143,10 @@ export function NotificationsBell() {
                   <div className="shrink-0 mt-0.5">
                     {n.type === "overdue" ? (
                       <AlertCircle className="h-4 w-4 text-amber-400" />
+                    ) : n.type === "competitor_up" ? (
+                      <TrendingUp className="h-4 w-4 text-emerald-400" />
+                    ) : n.type === "competitor_down" ? (
+                      <TrendingDown className="h-4 w-4 text-red-400" />
                     ) : (
                       <Calendar className="h-4 w-4 text-blue-400" />
                     )}
@@ -123,7 +154,10 @@ export function NotificationsBell() {
                   <Link href={n.href} onClick={() => setOpen(false)} className="flex-1 min-w-0">
                     <p className={cn(
                       "text-xs font-medium",
-                      n.type === "overdue" ? "text-amber-300" : "text-foreground"
+                      n.type === "overdue" ? "text-amber-300" :
+                      n.type === "competitor_up" ? "text-emerald-300" :
+                      n.type === "competitor_down" ? "text-red-300" :
+                      "text-foreground"
                     )}>{n.message}</p>
                     {n.detail && (
                       <p className="text-xs text-muted-foreground truncate mt-0.5">{n.detail}</p>

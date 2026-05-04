@@ -14,6 +14,9 @@ export function PostColumn({
   onEdit,
   onDuplicate,
   onDrop,
+  selecting,
+  selected,
+  onToggleSelect,
 }: {
   status: PostStatus;
   posts: Post[];
@@ -21,6 +24,9 @@ export function PostColumn({
   onEdit: (updated: Post) => void;
   onDuplicate?: (post: Post) => void;
   onDrop?: (postId: string, targetStatus: PostStatus) => void;
+  selecting?: boolean;
+  selected?: Set<string>;
+  onToggleSelect?: (id: string) => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
   const dragCounter = useRef(0);
@@ -76,13 +82,28 @@ export function PostColumn({
           </div>
         ) : (
           posts.map((p) => (
-            <DraggablePostCard
-              key={p.id}
-              post={p}
-              onDelete={onDelete}
-              onEdit={onEdit}
-              onDuplicate={onDuplicate}
-            />
+            <div key={p.id} className="relative">
+              {selecting && (
+                <button
+                  onClick={() => onToggleSelect?.(p.id)}
+                  className={cn(
+                    "absolute top-2 left-2 z-10 h-5 w-5 rounded border-2 transition-colors flex items-center justify-center",
+                    selected?.has(p.id)
+                      ? "bg-primary border-primary text-primary-foreground"
+                      : "bg-card border-border hover:border-primary"
+                  )}
+                >
+                  {selected?.has(p.id) && <span className="text-[10px] font-bold">✓</span>}
+                </button>
+              )}
+              <DraggablePostCard
+                post={p}
+                onDelete={onDelete}
+                onEdit={onEdit}
+                onDuplicate={onDuplicate}
+                dimmed={selecting && !selected?.has(p.id)}
+              />
+            </div>
           ))
         )}
       </div>
@@ -95,11 +116,13 @@ function DraggablePostCard({
   onDelete,
   onEdit,
   onDuplicate,
+  dimmed,
 }: {
   post: Post;
   onDelete: (id: string) => void;
   onEdit: (updated: Post) => void;
   onDuplicate?: (post: Post) => void;
+  dimmed?: boolean;
 }) {
   const [dragging, setDragging] = useState(false);
 
@@ -118,7 +141,8 @@ function DraggablePostCard({
       onDragEnd={handleDragEnd}
       className={cn(
         "cursor-grab active:cursor-grabbing transition-opacity",
-        dragging && "opacity-40"
+        dragging && "opacity-40",
+        dimmed && "opacity-40 pointer-events-none"
       )}
     >
       <PostCard

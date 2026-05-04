@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
-import { Plus, X, Sparkles, Hash, RefreshCw, Copy, Check, LayoutTemplate } from "lucide-react";
+import { Plus, X, Sparkles, Hash, RefreshCw, Copy, Check, LayoutTemplate, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   POST_TYPES, POST_STATUSES, TYPE_LABELS, STATUS_LABELS,
@@ -27,6 +27,49 @@ export function NewPostForm({ onCreate }: { onCreate: (post: Post) => void }) {
   const applyTemplate = (t: PostTemplate) => {
     setCaption(t.caption);
     setType(t.type);
+  };
+
+  // AI caption generator
+  const [showAiPanel, setShowAiPanel] = useState(false);
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiIdeas, setAiIdeas] = useState<{ hook: string; format: string; caption: string }[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+
+  const generateAiIdeas = async () => {
+    if (!aiTopic.trim() || aiLoading) return;
+    setAiLoading(true);
+    setAiError("");
+    setAiIdeas([]);
+    try {
+      const res = await fetch("/api/generate-ideas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic: aiTopic.trim() }),
+      });
+      const json = await res.json();
+      if (res.ok && json.ideas?.length) {
+        setAiIdeas(json.ideas);
+      } else {
+        setAiError(json.error ?? "No se pudo generar ideas");
+      }
+    } catch {
+      setAiError("Error de conexión");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const applyAiIdea = (idea: { hook: string; format: string; caption: string }) => {
+    setCaption(idea.caption);
+    const fmt = idea.format.toLowerCase();
+    if (fmt.includes("reel")) setType("reel");
+    else if (fmt.includes("carr")) setType("carousel");
+    else if (fmt.includes("hist")) setType("story");
+    else setType("photo");
+    setShowAiPanel(false);
+    setAiIdeas([]);
+    setAiTopic("");
   };
 
   // Hashtags
@@ -128,8 +171,74 @@ export function NewPostForm({ onCreate }: { onCreate: (post: Post) => void }) {
                 )}>
                   {caption.length}/2200
                 </span>
+                <button
+                  type="button"
+                  onClick={() => { setShowAiPanel((v) => !v); setAiIdeas([]); setAiError(""); }}
+                  className={cn(
+                    "inline-flex items-center gap-1 text-xs rounded-md border px-2 py-0.5 font-medium transition-colors",
+                    showAiPanel
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-primary/40 text-primary hover:bg-primary/10"
+                  )}
+                >
+                  <Sparkles className="h-3 w-3" />
+                  IA
+                  {showAiPanel ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                </button>
               </div>
             </div>
+
+            {/* AI generator panel */}
+            {showAiPanel && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
+                <p className="text-[11px] text-muted-foreground font-medium">Generá ideas con IA — escribí un tema y elegí la que más te guste</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={aiTopic}
+                    onChange={(e) => setAiTopic(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), generateAiIdeas())}
+                    placeholder="Ej: inflación, plazo fijo, inversión en dólares…"
+                    className="flex-1 rounded-md border bg-background px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={generateAiIdeas}
+                    disabled={!aiTopic.trim() || aiLoading}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 text-xs rounded-md border px-3 py-1.5 font-medium transition-colors shrink-0",
+                      !aiTopic.trim() || aiLoading
+                        ? "border-border text-muted-foreground cursor-not-allowed opacity-60"
+                        : "border-primary/50 text-primary hover:bg-primary/10"
+                    )}
+                  >
+                    {aiLoading
+                      ? <><RefreshCw className="h-3 w-3 animate-spin" /> Generando…</>
+                      : <><Sparkles className="h-3 w-3" /> Generar</>}
+                  </button>
+                </div>
+                {aiError && <p className="text-xs text-red-400">{aiError}</p>}
+                {aiIdeas.length > 0 && (
+                  <div className="space-y-2 pt-1">
+                    {aiIdeas.map((idea, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => applyAiIdea(idea)}
+                        className="w-full text-left rounded-lg border border-border hover:border-primary/50 bg-card hover:bg-primary/5 p-3 transition-colors space-y-1"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-semibold rounded-full border border-border px-1.5 py-0.5 text-muted-foreground shrink-0">{idea.format}</span>
+                          <p className="text-xs font-semibold text-foreground leading-snug line-clamp-1">{idea.hook}</p>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">{idea.caption}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <Textarea
               value={caption}
               onChange={(e) => setCaption(e.target.value)}

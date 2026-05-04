@@ -6,8 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { NewPostForm } from "@/components/instagram/new-post-form";
 import { PostColumn } from "@/components/instagram/post-column";
 import { PostList } from "@/components/instagram/post-list";
-import { Calendar, FileText, CheckCircle2, Inbox, AlertCircle, Search, X, LayoutGrid, List, Download } from "lucide-react";
-import { POST_STATUSES, POST_TYPES, TYPE_LABELS, SEED_POSTS, type Post, type PostStatus, type PostType } from "@/lib/posts";
+import { Calendar, FileText, CheckCircle2, Inbox, AlertCircle, Search, X, LayoutGrid, List, Download, CheckSquare, Trash2, ChevronDown } from "lucide-react";
+import { POST_STATUSES, POST_TYPES, TYPE_LABELS, STATUS_LABELS, SEED_POSTS, type Post, type PostStatus, type PostType } from "@/lib/posts";
 
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/lib/toast";
@@ -38,6 +38,9 @@ export default function InstagramPage() {
   const [typeFilter, setTypeFilter] = useState<PostType | "all">("all");
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"kanban" | "list">("kanban");
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState<PostStatus | "">("");
 
   // Carga inicial desde Supabase
   useEffect(() => {
@@ -130,6 +133,33 @@ export default function InstagramPage() {
     } else {
       toast("Error al eliminar el post", "error");
     }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selected.size || !confirm(`¿Eliminar ${selected.size} posts? Esta acción no se puede deshacer.`)) return;
+    const ids = [...selected];
+    await Promise.all(ids.map((id) => supabase.from("posts").delete().eq("id", id)));
+    setPosts((prev) => prev.filter((p) => !ids.includes(p.id)));
+    setSelected(new Set());
+    toast(`${ids.length} posts eliminados`);
+  };
+
+  const handleBulkStatus = async (newStatus: PostStatus) => {
+    if (!selected.size) return;
+    const ids = [...selected];
+    await Promise.all(ids.map((id) => supabase.from("posts").update({ status: newStatus }).eq("id", id)));
+    setPosts((prev) => prev.map((p) => ids.includes(p.id) ? { ...p, status: newStatus } : p));
+    setSelected(new Set());
+    setBulkStatus("");
+    toast(`${ids.length} posts actualizados`);
   };
 
   const handleDrop = async (postId: string, targetStatus: PostStatus) => {
@@ -273,6 +303,17 @@ export default function InstagramPage() {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {/* Modo selección */}
+          <button
+            onClick={() => { setSelecting((v) => !v); setSelected(new Set()); }}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
+              selecting ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-accent"
+            )}
+          >
+            <CheckSquare className="h-3.5 w-3.5" />
+            {selecting ? `Seleccionando (${selected.size})` : "Seleccionar"}
+          </button>
           {/* Exportar CSV */}
           <button
             onClick={handleExportCSV}
@@ -304,6 +345,32 @@ export default function InstagramPage() {
         </div>
       </div>
 
+      {/* Bulk action bar */}
+      {selecting && selected.size > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+          <span className="text-sm font-medium">{selected.size} seleccionados</span>
+          <span className="text-muted-foreground">·</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground">Mover a:</span>
+            {(["scheduled", "draft", "published", "backlog"] as PostStatus[]).map((s) => (
+              <button
+                key={s}
+                onClick={() => handleBulkStatus(s)}
+                className="text-xs rounded-md border border-border px-2.5 py-1 hover:bg-accent transition-colors capitalize"
+              >
+                {STATUS_LABELS[s]}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={handleBulkDelete}
+            className="ml-auto flex items-center gap-1.5 text-xs text-red-400 border border-red-500/30 rounded-md px-2.5 py-1 hover:bg-red-500/10 transition-colors"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Eliminar
+          </button>
+        </div>
+      )}
+
       <div className="mb-6">
         <NewPostForm onCreate={handleCreate} />
       </div>
@@ -313,7 +380,18 @@ export default function InstagramPage() {
       ) : view === "kanban" ? (
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
           {POST_STATUSES.map((status) => (
-            <PostColumn key={status} status={status} posts={grouped[status]} onDelete={handleDelete} onEdit={handleEdit} onDuplicate={handleDuplicate} onDrop={handleDrop} />
+            <PostColumn
+              key={status}
+              status={status}
+              posts={grouped[status]}
+              onDelete={handleDelete}
+              onEdit={handleEdit}
+              onDuplicate={handleDuplicate}
+              onDrop={handleDrop}
+              selecting={selecting}
+              selected={selected}
+              onToggleSelect={toggleSelect}
+            />
           ))}
         </div>
       ) : (

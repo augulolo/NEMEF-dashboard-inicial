@@ -4,7 +4,7 @@ import { PLATFORM_LABELS, PLATFORM_STYLES } from "@/lib/calendar";
 import { cn } from "@/lib/utils";
 import {
   CheckCircle2, Clock, AlertCircle, ChevronRight,
-  Flame, Instagram, Lightbulb, Newspaper, Sparkles, TrendingUp,
+  Flame, Instagram, Lightbulb, Newspaper, Sparkles, TrendingUp, CalendarDays,
 } from "lucide-react";
 import Link from "next/link";
 import { OwnAccountWidget } from "@/components/home/own-account-widget";
@@ -31,7 +31,12 @@ export default async function Home() {
   weekStart.setDate(todayDate.getDate() - ((todayDate.getDay() + 6) % 7));
   const weekStartStr = weekStart.toLocaleDateString("en-CA");
 
-  const [postsRes, overdueRes, todayPostsRes, weekPublishedRes, upcomingRes, newsRes, competitorsRes] = await Promise.all([
+  // Próximos 7 días (hoy inclusive)
+  const next7End = new Date(todayDate);
+  next7End.setDate(next7End.getDate() + 6);
+  const next7EndStr = next7End.toLocaleDateString("en-CA");
+
+  const [postsRes, overdueRes, todayPostsRes, weekPublishedRes, upcomingRes, newsRes, competitorsRes, next7Res] = await Promise.all([
     // Conteo total
     supabase.from("posts").select("id, status"),
     // Posts vencidos (fecha pasada, aún en scheduled)
@@ -69,6 +74,13 @@ export default async function Home() {
       .select("id, name, handle, platform, followers, followers_history, profile_pic_url")
       .order("followers", { ascending: false })
       .limit(5),
+    // Posts programados para los próximos 7 días
+    supabase.from("posts")
+      .select("id, caption, type, status, scheduled_date")
+      .eq("status", "scheduled")
+      .gte("scheduled_date", today)
+      .lte("scheduled_date", next7EndStr)
+      .order("scheduled_date"),
   ]);
 
   const posts          = postsRes.data ?? [];
@@ -77,6 +89,7 @@ export default async function Home() {
   const weekPublished  = weekPublishedRes.data ?? [];
   const upcoming       = upcomingRes.data ?? [];
   const newsItems      = newsRes?.data ?? [];
+  const next7Posts     = next7Res?.data ?? [];
 
   // Top 3 competidores por crecimiento
   const rawCompetitors = competitorsRes?.data ?? [];
@@ -91,6 +104,15 @@ export default async function Home() {
     .sort((a, b) => b.growthPct - a.growthPct)
     .slice(0, 3);
   const published      = posts.filter((p) => p.status === "published").length;
+
+  // Armar los 7 días
+  const next7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(todayDate);
+    d.setDate(d.getDate() + i);
+    const dateStr = d.toLocaleDateString("en-CA");
+    const dayPosts = next7Posts.filter((p) => p.scheduled_date === dateStr);
+    return { dateStr, dayPosts };
+  });
 
   // Racha de semanas con al menos 1 post publicado (últimas 12 semanas)
   const { data: publishedPosts } = await supabase
@@ -163,6 +185,81 @@ export default async function Home() {
         <KpiCard label="Esta semana"        value={weekPublished.length} color="text-primary"     icon={Instagram} />
         <KpiCard label="Racha de semanas"  value={streak}               color="text-amber-400"   icon={Flame}
           suffix={streak === 1 ? " sem" : " sem"} />
+      </div>
+
+      {/* Panel próximos 7 días */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+            <CalendarDays className="h-3.5 w-3.5" />
+            Próximos 7 días — Instagram
+          </h2>
+          <Link href="/instagram" className="text-xs text-primary hover:underline flex items-center gap-1">
+            Gestionar <ChevronRight className="h-3 w-3" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-7 gap-1.5">
+          {next7Days.map(({ dateStr, dayPosts }, i) => {
+            const isToday = dateStr === today;
+            const d = new Date(dateStr + "T12:00:00");
+            const dayName = d.toLocaleDateString("es-AR", { weekday: "short" });
+            const dayNum  = d.getDate();
+            return (
+              <div
+                key={dateStr}
+                className={cn(
+                  "rounded-lg border p-2 min-h-[88px] flex flex-col gap-1.5 transition-colors",
+                  isToday
+                    ? "border-primary/60 bg-primary/5"
+                    : dayPosts.length > 0
+                    ? "border-border bg-card"
+                    : "border-dashed border-border/50 bg-transparent"
+                )}
+              >
+                <div className="text-center">
+                  <p className={cn(
+                    "text-[10px] font-medium uppercase tracking-wide",
+                    isToday ? "text-primary" : "text-muted-foreground"
+                  )}>
+                    {dayName}
+                  </p>
+                  <p className={cn(
+                    "text-base font-bold leading-tight tabular-nums",
+                    isToday ? "text-primary" : "text-foreground"
+                  )}>
+                    {dayNum}
+                  </p>
+                </div>
+                {dayPosts.length > 0 ? (
+                  <div className="flex flex-col gap-1 flex-1">
+                    {dayPosts.slice(0, 2).map((p) => (
+                      <div
+                        key={p.id}
+                        className={cn(
+                          "rounded px-1.5 py-0.5 text-[9px] font-medium truncate leading-tight",
+                          p.type === "reel"     ? "bg-pink-500/20 text-pink-300" :
+                          p.type === "carousel" ? "bg-violet-500/20 text-violet-300" :
+                          p.type === "story"    ? "bg-amber-500/20 text-amber-300" :
+                                                  "bg-blue-500/20 text-blue-300"
+                        )}
+                        title={p.caption}
+                      >
+                        {p.caption.slice(0, 22)}{p.caption.length > 22 ? "…" : ""}
+                      </div>
+                    ))}
+                    {dayPosts.length > 2 && (
+                      <p className="text-[9px] text-muted-foreground text-center">
+                        +{dayPosts.length - 2} más
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[9px] text-muted-foreground/40 text-center mt-auto pb-1">—</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Últimas noticias financieras */}

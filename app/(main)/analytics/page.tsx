@@ -239,11 +239,51 @@ export default function AnalyticsPage() {
   const scheduled   = posts.filter((p) => p.status === "scheduled").length;
   const ideas       = posts.filter((p) => p.status === "backlog" || p.status === "draft").length;
 
+  // ── Month-over-month comparison ────────────────────────────
+  const thisMonthKey = today.slice(0, 7); // "yyyy-mm"
+  const lastMonthDate = new Date(today + "T00:00:00");
+  lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
+  const lastMonthKey = lastMonthDate.toLocaleDateString("en-CA").slice(0, 7);
+
+  const publishedThisMonth = posts.filter(
+    (p) => p.status === "published" && p.scheduledDate?.startsWith(thisMonthKey)
+  ).length;
+  const publishedLastMonth = posts.filter(
+    (p) => p.status === "published" && p.scheduledDate?.startsWith(lastMonthKey)
+  ).length;
+  const momChange = publishedLastMonth > 0
+    ? Math.round(((publishedThisMonth - publishedLastMonth) / publishedLastMonth) * 100)
+    : null;
+
+  // ── Content gap: types not published in last 14 days ──────
+  const cutoff14 = new Date(today + "T00:00:00");
+  cutoff14.setDate(cutoff14.getDate() - 14);
+  const cutoff14Str = cutoff14.toLocaleDateString("en-CA");
+  const recentTypes = new Set(
+    posts
+      .filter((p) => p.status === "published" && p.scheduledDate && p.scheduledDate >= cutoff14Str)
+      .map((p) => p.type)
+  );
+  const gapTypes = POST_TYPES.filter((t) => !recentTypes.has(t));
+
   // Content production totals
   const publishedPosts = posts.filter((p) => p.status === "published");
   const totalChars = publishedPosts.reduce((s, p) => s + p.caption.length, 0);
   const totalWords = publishedPosts.reduce((s, p) => s + p.caption.trim().split(/\s+/).filter(Boolean).length, 0);
   const avgWords = published > 0 ? Math.round(totalWords / published) : 0;
+
+  // ── Caption length distribution ────────────────────────────
+  const lengthBuckets = [
+    { label: "0–125", min: 0, max: 125 },
+    { label: "126–300", min: 126, max: 300 },
+    { label: "301–800", min: 301, max: 800 },
+    { label: "801–2200", min: 801, max: 2200 },
+  ];
+  const lengthDist = lengthBuckets.map((b) => ({
+    ...b,
+    count: publishedPosts.filter((p) => p.caption.length >= b.min && p.caption.length <= b.max).length,
+  }));
+  const maxLengthCount = Math.max(...lengthDist.map((b) => b.count), 1);
 
   const postsByType   = POST_TYPES.map((t) => ({
     key: t, label: TYPE_LABELS[t],
@@ -309,6 +349,45 @@ export default function AnalyticsPage() {
         <KpiCard icon={Clock}         label="Programados"          value={scheduled}  color="text-blue-400" />
         <KpiCard icon={Lightbulb}     label="Ideas y borradores"   value={ideas}      color="text-amber-400" />
       </div>
+
+      {/* Comparación mes a mes */}
+      {(publishedThisMonth > 0 || publishedLastMonth > 0) && (
+        <div className="rounded-lg border bg-card px-5 py-3 mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+          <span className="text-muted-foreground text-xs uppercase tracking-wide font-medium">Mes a mes</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Este mes:</span>
+            <span className="font-bold tabular-nums text-foreground">{publishedThisMonth}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Mes anterior:</span>
+            <span className="font-bold tabular-nums text-foreground">{publishedLastMonth}</span>
+          </div>
+          {momChange !== null && (
+            <span className={cn(
+              "inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border",
+              momChange >= 0
+                ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
+                : "text-red-400 border-red-500/30 bg-red-500/10"
+            )}>
+              {momChange >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+              {momChange >= 0 ? "+" : ""}{momChange}% vs mes anterior
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Content gap */}
+      {gapTypes.length > 0 && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-5 py-3 mb-4 flex flex-wrap items-center gap-3">
+          <span className="text-xs font-medium text-amber-400 uppercase tracking-wide">Sin publicar en 14 días</span>
+          {gapTypes.map((t) => (
+            <span key={t} className="text-xs border border-amber-500/30 rounded-full px-2.5 py-0.5 text-amber-300/80">
+              {TYPE_LABELS[t]}
+            </span>
+          ))}
+          <span className="text-xs text-muted-foreground ml-auto">Considerá incluir estos formatos en tu próximo post.</span>
+        </div>
+      )}
 
       {/* Content production summary */}
       {published > 0 && (
@@ -402,19 +481,32 @@ export default function AnalyticsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex items-end gap-2 h-24">
-            {weeklyData.map((w, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                <span className="text-xs tabular-nums text-muted-foreground">{w.count || ""}</span>
-                <div className="w-full rounded-sm bg-muted overflow-hidden" style={{ height: "64px" }}>
-                  <div
-                    className="w-full bg-primary rounded-sm transition-all duration-500"
-                    style={{ height: `${(w.count / maxWeekly) * 100}%`, marginTop: `${100 - (w.count / maxWeekly) * 100}%` }}
-                  />
-                </div>
-                <span className="text-[10px] text-muted-foreground truncate w-full text-center">{w.label}</span>
-              </div>
-            ))}
+          {/* Línea de meta */}
+          <div className="relative">
+            <div className="flex items-end gap-2 h-24">
+              {weeklyData.map((w, i) => {
+                const atGoal = w.count >= weeklyGoal;
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                    <span className="text-xs tabular-nums text-muted-foreground">{w.count || ""}</span>
+                    <div className="w-full rounded-sm bg-muted overflow-hidden" style={{ height: "64px" }}>
+                      <div
+                        className={cn("w-full rounded-sm transition-all duration-500", atGoal ? "bg-emerald-500" : "bg-primary")}
+                        style={{ height: `${(w.count / Math.max(maxWeekly, weeklyGoal)) * 100}%`, marginTop: `${100 - (w.count / Math.max(maxWeekly, weeklyGoal)) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground truncate w-full text-center">{w.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Goal line overlay */}
+            <div
+              className="absolute left-0 right-0 border-t border-dashed border-amber-400/60 pointer-events-none"
+              style={{ bottom: `${(weeklyGoal / Math.max(maxWeekly, weeklyGoal)) * 64 + 16}px` }}
+            >
+              <span className="absolute right-0 -top-4 text-[9px] text-amber-400/80 font-medium">meta {weeklyGoal}</span>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -509,6 +601,38 @@ export default function AnalyticsPage() {
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Distribución de longitud de captions */}
+      {published > 0 && (
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Longitud de captions publicados
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {lengthDist.map((b) => (
+                <div key={b.label}>
+                  <div className="flex justify-between text-xs mb-1.5">
+                    <span>{b.label} chars</span>
+                    <span className="text-muted-foreground tabular-nums">{b.count}</span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary/70 transition-all duration-500"
+                      style={{ width: `${(b.count / maxLengthCount) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-3">
+              El texto visible antes del "ver más" de Instagram es de aprox. 125 caracteres.
+            </p>
           </CardContent>
         </Card>
       )}
