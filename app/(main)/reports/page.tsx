@@ -211,10 +211,49 @@ export default function ReportsPage() {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = (format: "txt" | "md" = "txt") => {
     if (!aiReport) return;
+    const monthStr = `${MONTH_NAMES[selectedMonth]} ${selectedYear}`;
+
+    if (format === "md") {
+      const lines = [
+        `# Reporte mensual NEMEF — ${monthStr}`,
+        "",
+        `## ${aiReport.headline}`,
+        "",
+        aiReport.summary,
+        "",
+        "## Métricas clave",
+        "",
+        ...aiReport.highlights.map((h) => `- **${h.label}:** ${h.value} ${h.icon}`),
+        "",
+        "## Análisis",
+        "",
+        ...aiReport.insights.flatMap((ins) => [`### ${ins.title}`, "", ins.text, ""]),
+        "## Recomendaciones",
+        "",
+        ...aiReport.recommendations.map((r, i) => `${i + 1}. ${r}`),
+        "",
+        "## Objetivo del próximo mes",
+        "",
+        aiReport.nextMonthGoal,
+        "",
+        `---`,
+        `*Generado por NEMEF Dashboard · ${new Date().toLocaleDateString("es-AR")}*`,
+      ];
+      const content = lines.join("\n");
+      const blob = new Blob([content], { type: "text/markdown;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `reporte-nemef-${monthKey(selectedYear, selectedMonth)}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+
     const lines = [
-      `REPORTE MENSUAL NEMEF — ${MONTH_NAMES[selectedMonth].toUpperCase()} ${selectedYear}`,
+      `REPORTE MENSUAL NEMEF — ${monthStr.toUpperCase()}`,
       "═".repeat(60),
       "",
       `📌 ${aiReport.headline}`,
@@ -267,10 +306,16 @@ export default function ReportsPage() {
           description="Resumen de actividad, análisis de contenido y recomendaciones estratégicas."
         />
         {aiReport && (
-          <Button variant="outline" onClick={handleExport} className="shrink-0">
-            <Download className="h-4 w-4" />
-            Exportar
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" size="sm" onClick={() => handleExport("txt")}>
+              <Download className="h-3.5 w-3.5" />
+              .txt
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleExport("md")}>
+              <Download className="h-3.5 w-3.5" />
+              .md
+            </Button>
+          </div>
         )}
       </div>
 
