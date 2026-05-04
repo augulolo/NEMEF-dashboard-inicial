@@ -78,6 +78,17 @@ export default function AnalyticsPage() {
   const [insights, setInsights] = useState<InsightBullet[] | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [insightsError, setInsightsError] = useState<string | null>(null);
+  const [weeklyGoal, setWeeklyGoal] = useState<number>(3);
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalInput, setGoalInput] = useState("3");
+
+  // Load weekly goal from localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("nemef_weekly_goal");
+      if (stored) { const n = parseInt(stored, 10); if (n > 0) { setWeeklyGoal(n); setGoalInput(String(n)); } }
+    } catch { /**/ }
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -231,6 +242,70 @@ export default function AnalyticsPage() {
         <KpiCard icon={Clock}         label="Programados"          value={scheduled}  color="text-blue-400" />
         <KpiCard icon={Lightbulb}     label="Ideas y borradores"   value={ideas}      color="text-amber-400" />
       </div>
+
+      {/* Meta semanal */}
+      {!loading && (() => {
+        const thisWeekCount = weeklyData[weeklyData.length - 1]?.count ?? 0;
+        const pct = Math.min(Math.round((thisWeekCount / weeklyGoal) * 100), 100);
+        const done = thisWeekCount >= weeklyGoal;
+        return (
+          <Card className="mb-6">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-4 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Meta semanal</span>
+                  {done && <span className="text-[10px] font-semibold text-emerald-400 border border-emerald-500/30 rounded-full px-2 py-0.5">✓ Cumplida</span>}
+                </div>
+                {editingGoal ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="1" max="21"
+                      value={goalInput}
+                      onChange={(e) => setGoalInput(e.target.value)}
+                      className="w-16 rounded border bg-background text-center text-sm px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => {
+                        const n = parseInt(goalInput, 10);
+                        if (n > 0) {
+                          setWeeklyGoal(n);
+                          try { localStorage.setItem("nemef_weekly_goal", String(n)); } catch { /**/ }
+                        }
+                        setEditingGoal(false);
+                      }}
+                      className="text-xs text-primary hover:underline font-medium"
+                    >Guardar</button>
+                    <button onClick={() => setEditingGoal(false)} className="text-xs text-muted-foreground hover:underline">Cancelar</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setEditingGoal(true)} className="text-xs text-muted-foreground hover:text-primary transition-colors">
+                    Cambiar meta
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-2.5 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={cn("h-full rounded-full transition-all duration-700", done ? "bg-emerald-500" : "bg-primary")}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <span className={cn("text-sm font-semibold tabular-nums shrink-0", done ? "text-emerald-400" : "text-foreground")}>
+                  {thisWeekCount}/{weeklyGoal}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                {done
+                  ? `¡Excelente! Cumpliste tu meta de ${weeklyGoal} posts esta semana.`
+                  : `${weeklyGoal - thisWeekCount} post${weeklyGoal - thisWeekCount !== 1 ? "s" : ""} más para alcanzar tu meta de esta semana.`
+                }
+              </p>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Tendencia semanal de publicación */}
       <Card className="mb-6">

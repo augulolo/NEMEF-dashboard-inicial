@@ -72,12 +72,27 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function ItemCard({ text, onDelete }: { text: string; onDelete?: () => void }) {
+function ItemCard({ text, onDelete, onSave, saved }: { text: string; onDelete?: () => void; onSave?: () => void; saved?: boolean }) {
   return (
     <div className="flex items-start gap-3 rounded-lg border bg-card p-3 group">
       <p className="flex-1 text-sm leading-relaxed">{text}</p>
       <div className="flex items-center gap-1 shrink-0">
         <CopyButton text={text} />
+        {onSave && (
+          <button
+            onClick={onSave}
+            disabled={saved}
+            className={cn(
+              "p-1.5 rounded-md border transition-colors text-xs",
+              saved
+                ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10 cursor-default"
+                : "border-border text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 opacity-0 group-hover:opacity-100"
+            )}
+            title={saved ? "Ya guardado" : "Guardar en Mis guardados"}
+          >
+            {saved ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+          </button>
+        )}
         {onDelete && (
           <button
             onClick={onDelete}
@@ -157,7 +172,15 @@ export default function HooksPage() {
             Frases diseñadas para captar atención en los primeros 3 segundos. Adaptálas a tu voz.
           </p>
           {PRESET_HOOKS.map((hook, i) => (
-            <ItemCard key={i} text={hook} />
+            <ItemCard
+              key={i}
+              text={hook}
+              saved={customHooks.includes(hook)}
+              onSave={() => {
+                if (!customHooks.includes(hook))
+                  setCustomHooks((prev) => [hook, ...prev]);
+              }}
+            />
           ))}
         </div>
       )}
@@ -169,7 +192,15 @@ export default function HooksPage() {
             Llamados a la acción para cerrar tus posts y aumentar la interacción.
           </p>
           {PRESET_CTAS.map((cta, i) => (
-            <ItemCard key={i} text={cta} />
+            <ItemCard
+              key={i}
+              text={cta}
+              saved={customHooks.includes(cta)}
+              onSave={() => {
+                if (!customHooks.includes(cta))
+                  setCustomHooks((prev) => [cta, ...prev]);
+              }}
+            />
           ))}
         </div>
       )}
