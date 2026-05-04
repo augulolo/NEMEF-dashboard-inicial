@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { NewPostForm } from "@/components/instagram/new-post-form";
 import { PostColumn } from "@/components/instagram/post-column";
 import { PostList } from "@/components/instagram/post-list";
-import { Calendar, FileText, CheckCircle2, Inbox, AlertCircle, Search, X, LayoutGrid, List, Download, CheckSquare, Trash2, ChevronDown } from "lucide-react";
+import { Calendar, FileText, CheckCircle2, Inbox, AlertCircle, Search, X, LayoutGrid, List, Download, CheckSquare, Trash2, ChevronDown, Instagram, Sparkles } from "lucide-react";
 import { POST_STATUSES, POST_TYPES, TYPE_LABELS, STATUS_LABELS, SEED_POSTS, type Post, type PostStatus, type PostType } from "@/lib/posts";
 
 import { supabase } from "@/lib/supabase";
@@ -430,6 +430,38 @@ export default function InstagramPage() {
 
       {loading ? (
         <div className="text-sm text-muted-foreground">Cargando posts…</div>
+      ) : !loading && posts.length === 0 ? (
+        /* ── Empty state de bienvenida ── */
+        <div className="flex flex-col items-center justify-center gap-5 py-20 text-center">
+          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-pink-500/20 to-violet-500/20 border border-pink-500/30 flex items-center justify-center">
+            <Instagram className="h-8 w-8 text-pink-400" />
+          </div>
+          <div className="max-w-sm">
+            <h2 className="text-lg font-semibold">Todavía no hay posts</h2>
+            <p className="text-sm text-muted-foreground mt-1.5">
+              Empezá a construir tu calendario de contenido. Creá tu primer post y organizalo en el kanban.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <span className="text-base leading-none">+</span>
+              Crear primer post
+            </button>
+            <a
+              href="/ideas"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent transition-colors"
+            >
+              <Sparkles className="h-4 w-4 text-primary" />
+              Buscar ideas con IA
+            </a>
+          </div>
+          <p className="text-[11px] text-muted-foreground/60">
+            Tip: usá el botón <strong>+</strong> de arriba o la columna <em>Backlog</em> para empezar.
+          </p>
+        </div>
       ) : view === "kanban" ? (
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
           {POST_STATUSES.map((status) => (
