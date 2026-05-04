@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Clock, Send, Pin } from "lucide-react";
+import { Plus, Trash2, Clock, Send, Pin, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import { supabase } from "@/lib/supabase";
@@ -144,6 +144,24 @@ export default function NotasPage() {
     else toast("Error al crear borrador", "error");
   };
 
+  const handleExportAll = () => {
+    if (notes.length === 0) return;
+    const content = notes
+      .map((n, i) => {
+        const date = new Date(n.updatedAt).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
+        const pin = n.pinned ? " 📌" : "";
+        return `# Nota ${i + 1}${pin}\n_${date}_\n\n${n.content}`;
+      })
+      .join("\n\n---\n\n");
+    const blob = new Blob([content], { type: "text/markdown;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `notas-nemef-${new Date().toLocaleDateString("en-CA")}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const preview = (c: string) => {
     const first = c.trim().split("\n")[0] || "Nota vacía";
     return first.slice(0, 40) + (first.length > 40 ? "…" : "");
@@ -156,10 +174,22 @@ export default function NotasPage() {
           title="Notas rápidas"
           description="Ideas, borradores y apuntes antes de convertirlos en posts."
         />
-        <Button onClick={handleNew}>
-          <Plus className="h-4 w-4 mr-1" />
-          Nueva nota
-        </Button>
+        <div className="flex items-center gap-2">
+          {notes.length > 0 && (
+            <button
+              onClick={handleExportAll}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              title="Exportar todas las notas como Markdown"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Exportar .md
+            </button>
+          )}
+          <Button onClick={handleNew}>
+            <Plus className="h-4 w-4 mr-1" />
+            Nueva nota
+          </Button>
+        </div>
       </div>
 
       {notes.length === 0 ? (
