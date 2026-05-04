@@ -14,20 +14,22 @@ export async function POST(req: Request) {
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  const prompt = `Sos estratega de contenido para @noesmagiaesfinanzas, cuenta de finanzas personales en Instagram para Argentina. Tono: claro, directo, educativo, cercano.
+  const prompt = `Sos estratega de contenido para NEMEF (No es Magia, Es Finanzas), cuenta de educación financiera en Instagram orientada a Argentina.
+
+PERFIL DE VOZ: Profesional pero accesible. Educativo sin ser condescendiente. Directo, con fundamento y datos reales. Sin frases sensacionalistas ni clickbait vacío. El modelo de referencia es el estilo de @freenance, @joveninversor o academias como Finit: contenido que forma criterio, explica con rigor y conecta con la audiencia desde el conocimiento, no desde el chiste o el slogan.
 
 El creador quiere hacer contenido sobre: "${topic}"
 
 Generá 5 ideas de posts de Instagram, cada una con un ángulo diferente. Para cada idea incluí:
-- Un título/hook de máximo 10 palabras
-- El formato sugerido (Reel, Carrusel, Post de imagen, Historia)
-- Un caption corto de 3-4 líneas listo para usar (con emojis y hashtags)
+- Un hook de apertura claro y directo (máx. 12 palabras) — puede ser una pregunta real, un dato concreto o una afirmación con sustento
+- El formato sugerido (Reel, Carrusel, Post, Historia)
+- Un caption de 3-4 líneas que eduque, contextualice y cierre con una invitación a la conversación (incluir hashtags relevantes)
 
 Respondé ÚNICAMENTE con un JSON con este formato exacto, sin texto adicional:
 {
   "ideas": [
     {
-      "hook": "título corto impactante",
+      "hook": "hook de apertura",
       "format": "Reel | Carrusel | Post | Historia",
       "caption": "caption listo para usar con emojis y hashtags"
     }

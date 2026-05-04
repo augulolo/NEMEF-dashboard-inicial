@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { OwnAccountWidget } from "@/components/home/own-account-widget";
+import { MarketTicker } from "@/components/home/market-ticker";
 import { CompetitorAvatar } from "@/components/competitors/competitor-avatar";
 
 function serverGrowthPct(history: number[]): number {
@@ -332,6 +333,11 @@ export default async function Home() {
       {/* Widget de mis cuentas NEMEF */}
       <div className="mb-6">
         <OwnAccountWidget />
+      </div>
+
+      {/* Ticker de mercado */}
+      <div className="mb-6">
+        <MarketTicker />
       </div>
 
       {/* Acciones rápidas */}

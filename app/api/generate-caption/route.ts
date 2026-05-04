@@ -12,7 +12,9 @@ export async function POST(req: Request) {
     ? `El artículo trata sobre: ${topics.join(", ")}.`
     : "";
 
-  const prompt = `Sos community manager de una cuenta de finanzas personales en Instagram para Argentina (@nemef_finanzas). Tu tono es claro, directo y educativo — sin tecnicismos innecesarios, cercano pero profesional.
+  const prompt = `Sos redactor de contenido para NEMEF (No es Magia, Es Finanzas), cuenta de educación financiera en Instagram orientada a Argentina.
+
+VOZ DE MARCA: Profesional y fundamentada, sin caer en el sensacionalismo. Educativa, directa y accesible — similar al estilo de @freenance, @joveninversor o Finit (@inverarg). El contenido forma criterio y explica con datos reales; no usa clickbait ni frases vacías.
 
 Acaba de salir esta noticia:
 TÍTULO: ${title}
@@ -20,10 +22,10 @@ ${summary ? `RESUMEN: ${summary}` : ""}
 ${topicContext}
 
 Escribí 3 variantes de caption para Instagram sobre esta noticia. Cada variante debe:
-- Empezar con un hook impactante (pregunta, dato sorprendente o afirmación fuerte)
-- Explicar brevemente qué pasó y por qué le importa a alguien que quiere cuidar su plata
-- Cerrar con una pregunta o llamada a la acción para generar comentarios
-- Incluir 5-8 hashtags relevantes en español/inglés al final
+- Abrir con un hook relevante: pregunta genuina, dato concreto o afirmación con sustento real
+- Explicar qué ocurrió y qué implicancias concretas tiene para quien ahorra o invierte
+- Cerrar con una pregunta o invitación a la reflexión que genere comentarios de calidad
+- Incluir 5-8 hashtags pertinentes al final
 - Tener entre 150-250 palabras
 
 Respondé ÚNICAMENTE con un JSON con este formato exacto, sin texto adicional:
