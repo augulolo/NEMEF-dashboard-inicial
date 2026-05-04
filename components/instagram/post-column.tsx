@@ -10,11 +10,13 @@ export function PostColumn({
   posts,
   onDelete,
   onEdit,
+  onDuplicate,
 }: {
   status: PostStatus;
   posts: Post[];
   onDelete: (id: string) => void;
   onEdit: (updated: Post) => void;
+  onDuplicate?: (post: Post) => void;
 }) {
   return (
     <div className="flex flex-col gap-3 min-w-0">
@@ -30,7 +32,7 @@ export function PostColumn({
             Todavía no hay nada acá
           </div>
         ) : (
-          posts.map((p) => <PostCard key={p.id} post={p} onDelete={onDelete} onEdit={onEdit} />)
+          posts.map((p) => <PostCard key={p.id} post={p} onDelete={onDelete} onEdit={onEdit} onDuplicate={onDuplicate} />)
         )}
       </div>
     </div>

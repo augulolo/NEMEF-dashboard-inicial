@@ -131,6 +131,25 @@ export default function InstagramPage() {
     }
   };
 
+  const handleDuplicate = async (post: Post) => {
+    const { data, error } = await supabase
+      .from("posts")
+      .insert({
+        caption: post.caption,
+        type: post.type,
+        status: "draft",
+        scheduled_date: null,
+      })
+      .select()
+      .single();
+    if (!error && data) {
+      setPosts((prev) => [fromDB(data), ...prev]);
+      toast("Post duplicado como borrador");
+    } else {
+      toast("Error al duplicar el post", "error");
+    }
+  };
+
   const handleExportCSV = () => {
     const headers = ["Estado", "Tipo", "Caption", "Fecha programada", "Creado"];
     const { STATUS_LABELS: SL, TYPE_LABELS: TL } = { STATUS_LABELS: { scheduled: "Programado", draft: "Borrador", published: "Publicado", backlog: "Idea" }, TYPE_LABELS: { reel: "Reel", carousel: "Carrusel", photo: "Foto", story: "Historia" } };
@@ -287,11 +306,11 @@ export default function InstagramPage() {
       ) : view === "kanban" ? (
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
           {POST_STATUSES.map((status) => (
-            <PostColumn key={status} status={status} posts={grouped[status]} onDelete={handleDelete} onEdit={handleEdit} />
+            <PostColumn key={status} status={status} posts={grouped[status]} onDelete={handleDelete} onEdit={handleEdit} onDuplicate={handleDuplicate} />
           ))}
         </div>
       ) : (
-        <PostList posts={filteredPosts} onDelete={handleDelete} onEdit={handleEdit} />
+        <PostList posts={filteredPosts} onDelete={handleDelete} onEdit={handleEdit} onDuplicate={handleDuplicate} />
       )}
     </>
   );

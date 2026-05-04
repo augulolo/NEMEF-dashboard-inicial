@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Calendar, Trash2, Pencil, CheckCircle2, Copy, Check, ArrowRight } from "lucide-react";
+import { Calendar, Trash2, Pencil, CheckCircle2, Copy, Check, ArrowRight, Files } from "lucide-react";
 import { Image as ImageIcon, Film, Circle, Layers } from "lucide-react";
 import type { Post, PostStatus } from "@/lib/posts";
 import { TYPE_LABELS, STATUS_LABELS, POST_STATUSES } from "@/lib/posts";
@@ -29,10 +29,12 @@ export function PostList({
   posts,
   onDelete,
   onEdit,
+  onDuplicate,
 }: {
   posts: Post[];
   onDelete: (id: string) => void;
   onEdit: (updated: Post) => void;
+  onDuplicate?: (post: Post) => void;
 }) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -141,6 +143,12 @@ export function PostList({
                         onClick={() => handleCopy(p)} title="Copiar caption">
                         {copiedId === p.id ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
                       </Button>
+                      {onDuplicate && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                          onClick={() => onDuplicate(p)} title="Duplicar como borrador">
+                          <Files className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-red-400"
                         onClick={() => onDelete(p.id)}>
                         <Trash2 className="h-3.5 w-3.5" />

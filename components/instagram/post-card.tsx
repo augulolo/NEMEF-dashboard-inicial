@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import {
   Image as ImageIcon, Film, Circle, Layers, Calendar,
-  Trash2, Pencil, Check, X, Copy, CheckCircle2, Repeat2, Star, RefreshCw, Sparkles,
+  Trash2, Pencil, Check, X, Copy, CheckCircle2, Repeat2, Star, RefreshCw, Sparkles, Files,
 } from "lucide-react";
 import type { Post, PostType, PostStatus } from "@/lib/posts";
 import { TYPE_LABELS, STATUS_LABELS, POST_TYPES, POST_STATUSES } from "@/lib/posts";
@@ -29,10 +29,12 @@ export function PostCard({
   post,
   onDelete,
   onEdit,
+  onDuplicate,
 }: {
   post: Post;
   onDelete: (id: string) => void;
   onEdit: (updated: Post) => void;
+  onDuplicate?: (post: Post) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [caption, setCaption] = useState(post.caption);
@@ -292,6 +294,18 @@ export function PostCard({
               >
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
+              {onDuplicate && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  onClick={() => onDuplicate(post)}
+                  aria-label="Duplicar post"
+                  title="Duplicar como borrador"
+                >
+                  <Files className="h-3.5 w-3.5" />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
