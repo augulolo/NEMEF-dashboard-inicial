@@ -127,6 +127,7 @@ export async function POST() {
         engagement_rate: Math.round(avgEngagement * 10) / 10,
         posts_per_week: Math.round(postsPerWeek * 10) / 10,
         recent_posts: recentPosts,
+        synced_at: new Date().toISOString(),
       })
       .eq("id", comp.id);
 

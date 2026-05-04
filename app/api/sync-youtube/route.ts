@@ -66,11 +66,16 @@ export async function POST() {
     return NextResponse.json({ error: "Apify no devolvió datos de YouTube. Verificá que los handles sean correctos.", updated: 0 }, { status: 404 });
   }
 
-  // Agrupar videos por canal (usando channelUrl o channelHandle)
+  // Agrupar videos por canal (usando channelHandle o extrayendo handle de channelUrl)
   const byChannel = new Map<string, YTItem[]>();
   for (const item of items) {
-    // Usar channelHandle si existe, sino extraer de channelUrl
-    const key = (item.channelHandle ?? item.channelUrl ?? "").toLowerCase().replace(/^@/, "");
+    // Preferir channelHandle; si es una URL tipo /channel/UC... usar la URL completa como key
+    let key = (item.channelHandle ?? "").toLowerCase().replace(/^@/, "");
+    if (!key && item.channelUrl) {
+      // Extraer handle de URL tipo "https://youtube.com/@handle" o "https://youtube.com/channel/UC..."
+      const match = (item.channelUrl as string).match(/@([^/?#]+)/i);
+      key = match ? match[1].toLowerCase() : (item.channelUrl as string).toLowerCase();
+    }
     if (!key) continue;
     if (!byChannel.has(key)) byChannel.set(key, []);
     byChannel.get(key)!.push(item);
@@ -132,6 +137,7 @@ export async function POST() {
         recent_posts: recentPosts,
         profile_pic_url: profilePicUrl,
         bio,
+        synced_at: new Date().toISOString(),
       })
       .eq("id", comp.id);
 

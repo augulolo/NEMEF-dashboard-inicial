@@ -8,7 +8,7 @@ import { Select } from "@/components/ui/select";
 import {
   RefreshCw, Plus, Trash2, Heart, MessageCircle, Eye,
   Users, Zap, BarChart2, Clock, Instagram, Twitter, Youtube,
-  CheckCircle2, Circle, ExternalLink, ChevronDown, ChevronUp,
+  CheckCircle2, ExternalLink, ChevronDown, ChevronUp, ChevronRight,
   AlertCircle, Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -69,6 +69,7 @@ export function MyAccount() {
   /* ── Apify section state ── */
   const [accounts, setAccounts] = useState<OwnHandle[]>([]);
   const [syncingHandle, setSyncingHandle] = useState<string | null>(null);
+  const [syncingAll, setSyncingAll] = useState(false);
   const [adding, setAdding] = useState(false);
   const [newPlatform, setNewPlatform] = useState<Platform>("instagram");
   const [newHandle, setNewHandle] = useState("");
@@ -129,6 +130,33 @@ export function MyAccount() {
       toast(`✓ ${account.handle} — ${formatCount(json.followers)} seguidores`);
     } catch { toast("No se pudo conectar con el servidor", "error"); }
     finally { setSyncingHandle(null); }
+  };
+
+  const handleSyncAll = async () => {
+    if (accounts.length === 0 || syncingHandle || syncingAll) return;
+    setSyncingAll(true);
+    let updated = accounts;
+    for (const account of accounts) {
+      setSyncingHandle(account.handle);
+      try {
+        const res = await fetch("/api/sync-own-account", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ handle: account.handle, platform: account.platform, currentHistory: account.followersHistory }),
+        });
+        const json = await res.json();
+        if (res.ok) {
+          updated = updated.map((a) =>
+            a.handle === account.handle ? { ...a, ...json, recentPosts: json.recentPosts ?? [] } : a
+          );
+        }
+      } catch { /* continue */ }
+    }
+    setSyncingHandle(null);
+    setSyncingAll(false);
+    setAccounts(updated);
+    saveLS(updated);
+    toast("Todas las cuentas sincronizadas");
   };
 
   return (
@@ -296,9 +324,26 @@ export function MyAccount() {
 
       {/* ══ SECCIÓN APIFY (otros handles / plataformas) ══ */}
       <div>
-        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
-          Otras cuentas (Twitter, YouTube…)
-        </h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Otras cuentas (Twitter, YouTube…)
+          </h3>
+          {accounts.length > 1 && (
+            <button
+              onClick={handleSyncAll}
+              disabled={syncingHandle !== null || syncingAll}
+              className={cn(
+                "inline-flex items-center gap-1 text-[11px] font-medium transition-colors",
+                syncingAll
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-primary"
+              )}
+            >
+              <RefreshCw className={cn("h-3 w-3", syncingAll && "animate-spin")} />
+              {syncingAll ? "Sincronizando…" : "Sincronizar todo"}
+            </button>
+          )}
+        </div>
 
         {accounts.length === 0 && !adding ? (
           <Card className="border-dashed">
@@ -371,7 +416,8 @@ export function MyAccount() {
                           <div className="mt-3">
                             <button onClick={() => setExpanded(isExpanded ? null : account.handle)}
                               className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-                              {isExpanded ? "▾" : "▸"} {account.recentPosts.length} posts recientes
+                              {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                              {account.recentPosts.length} posts recientes
                             </button>
                             {isExpanded && (
                               <div className="mt-2 space-y-1.5">

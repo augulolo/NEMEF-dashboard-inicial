@@ -93,20 +93,39 @@ export async function POST(req: Request) {
     }
 
     if (platform === "twitter") {
-      const res = await fetch(
-        `${APIFY_BASE}/quacker~twitter-user-scraper/run-sync-get-dataset-items?token=${token}&timeout=45`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ usernames: [username] }),
-        }
-      );
-      if (!res.ok) return NextResponse.json({ error: `Apify error ${res.status}` }, { status: 502 });
+      const twActors = [
+        { id: "apidojo~tweet-scraper", body: { twitterHandles: [username], maxItems: 2 } },
+        { id: "quacker~twitter-user-scraper", body: { usernames: [username] } },
+      ];
 
-      const profiles: ApifyTWProfile[] = await res.json();
-      const profile = profiles.find((p) => p.userName?.toLowerCase() === username.toLowerCase());
-      const followers = profile?.followers ?? profile?.followersCount ?? 0;
-      if (!followers) return NextResponse.json({ error: `No se encontró @${username} en Twitter` }, { status: 404 });
+      let twProfiles: ApifyTWProfile[] = [];
+      let twLastError = "";
+      for (const actor of twActors) {
+        try {
+          const res = await fetch(
+            `${APIFY_BASE}/${actor.id}/run-sync-get-dataset-items?token=${token}&timeout=45`,
+            { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(actor.body) }
+          );
+          if (!res.ok) { twLastError = `Apify error ${res.status}`; continue; }
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) { twProfiles = data; break; }
+        } catch (err) { twLastError = err instanceof Error ? err.message : String(err); continue; }
+      }
+
+      if (!twProfiles.length) {
+        return NextResponse.json(
+          { error: twLastError || `No se encontró @${username} en Twitter/X` },
+          { status: 404 }
+        );
+      }
+
+      const raw = twProfiles[0] as Record<string, unknown>;
+      const authorData = (raw.author as Record<string, unknown>) ?? raw;
+      const followers =
+        (authorData.followers as number) ?? (authorData.followersCount as number) ??
+        (raw.followers as number) ?? (raw.followersCount as number) ?? 0;
+
+      if (!followers) return NextResponse.json({ error: `No se encontró @${username} en Twitter/X` }, { status: 404 });
 
       const newHistory = [...history, followers].slice(-24);
       return NextResponse.json({
@@ -120,7 +139,7 @@ export async function POST(req: Request) {
     }
 
     if (platform === "youtube") {
-      const channelUrl = `https://www.youtube.com/@${username}`;
+      const channelUrl = `https://www.youtube.com/@${username}/videos`;
       const res = await fetch(
         `${APIFY_BASE}/apify~youtube-scraper/run-sync-get-dataset-items?token=${token}&timeout=45`,
         {
