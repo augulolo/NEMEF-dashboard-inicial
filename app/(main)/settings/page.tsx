@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { ExternalLink, CheckCircle2, AlertCircle, Bell, BellOff } from "lucide-react";
+import { ExternalLink, CheckCircle2, AlertCircle, Bell, BellOff, RefreshCw, Calendar } from "lucide-react";
 
 const NOTIF_KEY = "nemef_notif_competitors_enabled";
 
@@ -72,6 +72,9 @@ function StatusBadge({ connected }: { connected: boolean }) {
 export default function SettingsPage() {
   const [notifEnabled, setNotifEnabled] = useState(false);
   const [notifLoaded, setNotifLoaded] = useState(false);
+  const [googleStatus, setGoogleStatus] = useState<{ configured: boolean; connected: boolean } | null>(null);
+  const [googleSyncing, setGoogleSyncing] = useState(false);
+  const [googleMsg, setGoogleMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     try {
@@ -79,7 +82,55 @@ export default function SettingsPage() {
       setNotifEnabled(stored === "true");
     } catch { /**/ }
     setNotifLoaded(true);
+
+    // Check Google Calendar status
+    fetch("/api/google-calendar")
+      .then((r) => r.json())
+      .then((d: { configured: boolean; connected: boolean }) => setGoogleStatus(d))
+      .catch(() => {});
   }, []);
+
+  // Handle redirect back from Google OAuth
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const gStatus = params.get("google");
+    if (gStatus === "connected") {
+      setGoogleMsg({ ok: true, text: "Google Calendar conectado exitosamente ✓" });
+      setGoogleStatus((s) => s ? { ...s, connected: true } : null);
+      window.history.replaceState({}, "", "/settings");
+    } else if (gStatus) {
+      setGoogleMsg({ ok: false, text: "Error al conectar Google Calendar. Intentá de nuevo." });
+      window.history.replaceState({}, "", "/settings");
+    }
+  }, []);
+
+  const handleGoogleConnect = async () => {
+    setGoogleSyncing(true);
+    try {
+      const res = await fetch("/api/google-calendar?action=auth-url");
+      const { url } = await res.json() as { url?: string };
+      if (url) window.location.href = url;
+      else setGoogleMsg({ ok: false, text: "No se pudo obtener la URL de autorización." });
+    } catch {
+      setGoogleMsg({ ok: false, text: "Error al conectar con Google." });
+    } finally {
+      setGoogleSyncing(false);
+    }
+  };
+
+  const handleGoogleSync = async () => {
+    setGoogleSyncing(true);
+    setGoogleMsg(null);
+    try {
+      const res = await fetch("/api/google-calendar", { method: "POST" });
+      const data = await res.json() as { ok: boolean; message: string };
+      setGoogleMsg({ ok: data.ok, text: data.message });
+    } catch {
+      setGoogleMsg({ ok: false, text: "Error de red al sincronizar." });
+    } finally {
+      setGoogleSyncing(false);
+    }
+  };
 
   const toggleNotif = () => {
     const next = !notifEnabled;
@@ -153,6 +204,107 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         ))}
+
+        {/* Google Calendar */}
+        <Card>
+          <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Google Calendar
+            </CardTitle>
+            {googleStatus !== null && (
+              <StatusBadge connected={googleStatus.configured && googleStatus.connected} />
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Sincronizá tus posts programados directamente con Google Calendar. Los eventos se crean o actualizan automáticamente para los próximos 3 meses.
+            </p>
+
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Variables requeridas
+              </p>
+              {[
+                { name: "GOOGLE_CLIENT_ID", hint: "Client ID de tu app OAuth2 en Google Cloud Console" },
+                { name: "GOOGLE_CLIENT_SECRET", hint: "Client Secret de tu app OAuth2" },
+                { name: "GOOGLE_REDIRECT_URI", hint: "ej: http://localhost:3000/api/google-calendar/callback" },
+                { name: "GOOGLE_CALENDAR_ID", hint: "ID del calendario (ej: primary)" },
+              ].map((v) => (
+                <div key={v.name} className="rounded-md border bg-background/60 px-3 py-2.5 flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <code className="text-xs font-mono text-foreground/90 break-all">{v.name}</code>
+                    <p className="text-xs text-muted-foreground mt-0.5">{v.hint}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {googleMsg && (
+              <div className={cn(
+                "flex items-center gap-2 rounded-md border px-3 py-2 text-xs",
+                googleMsg.ok
+                  ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-400"
+                  : "border-amber-500/30 bg-amber-500/5 text-amber-400"
+              )}>
+                {googleMsg.ok
+                  ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                  : <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                }
+                <span className="flex-1">{googleMsg.text}</span>
+                <button onClick={() => setGoogleMsg(null)} className="opacity-60 hover:opacity-100">✕</button>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 pt-1">
+              {googleStatus?.configured && !googleStatus.connected && (
+                <button
+                  onClick={handleGoogleConnect}
+                  disabled={googleSyncing}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  <Calendar className="h-3.5 w-3.5" />
+                  Conectar con Google
+                </button>
+              )}
+              {googleStatus?.configured && googleStatus.connected && (
+                <>
+                  <button
+                    onClick={handleGoogleSync}
+                    disabled={googleSyncing}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
+                  >
+                    <RefreshCw className={cn("h-3.5 w-3.5", googleSyncing && "animate-spin")} />
+                    {googleSyncing ? "Sincronizando…" : "Sincronizar ahora"}
+                  </button>
+                  <button
+                    onClick={handleGoogleConnect}
+                    disabled={googleSyncing}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Reconectar
+                  </button>
+                </>
+              )}
+              {!googleStatus?.configured && (
+                <p className="text-xs text-muted-foreground">
+                  Configurá las variables de entorno para habilitar la conexión.
+                </p>
+              )}
+            </div>
+
+            <a
+              href="https://console.cloud.google.com/apis/credentials"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+            >
+              <ExternalLink className="h-3 w-3" />
+              Google Cloud Console — Credenciales →
+            </a>
+          </CardContent>
+        </Card>
 
         {/* Notificaciones */}
         <Card>

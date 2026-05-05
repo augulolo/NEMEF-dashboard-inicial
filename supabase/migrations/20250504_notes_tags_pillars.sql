@@ -110,3 +110,13 @@ create policy "allow_all_post_pillars"    on post_pillars      for all using (tr
 create policy "allow_all_content_pillars" on content_pillars   for all using (true) with check (true);
 create policy "allow_all_projects"        on projects          for all using (true) with check (true);
 create policy "allow_all_chapters"        on project_chapters  for all using (true) with check (true);
+
+-- ── Tabla de configuración del sistema ────────────────────────────────────────
+create table if not exists settings (
+  key        text primary key,
+  value      text,
+  updated_at timestamptz not null default now()
+);
+
+alter table settings enable row level security;
+create policy "allow_all_settings" on settings for all using (true) with check (true);

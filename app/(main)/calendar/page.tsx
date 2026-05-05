@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { PlatformFilter } from "@/components/calendar/platform-filter";
 import { MonthGrid, DENSITY_LEGEND } from "@/components/calendar/month-grid";
 import { WeekGrid } from "@/components/calendar/week-grid";
@@ -173,6 +173,32 @@ export default function CalendarPage() {
     URL.revokeObjectURL(url);
   };
 
+  const [googleSyncing, setGoogleSyncing] = useState(false);
+  const [googleResult, setGoogleResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const handleGoogleSync = async () => {
+    setGoogleSyncing(true);
+    setGoogleResult(null);
+    try {
+      const res = await fetch("/api/google-calendar", { method: "POST" });
+      const data = await res.json() as { ok: boolean; message: string; error?: string };
+      if (data.error === "not_configured") {
+        setGoogleResult({ ok: false, message: "Configurá las variables de Google Calendar en .env.local" });
+      } else if (data.error === "not_connected") {
+        // Redirigir a OAuth
+        const authRes = await fetch("/api/google-calendar?action=auth-url");
+        const { url } = await authRes.json() as { url: string };
+        if (url) window.location.href = url;
+      } else {
+        setGoogleResult({ ok: data.ok, message: data.message });
+      }
+    } catch {
+      setGoogleResult({ ok: false, message: "Error de red al conectar con Google Calendar" });
+    } finally {
+      setGoogleSyncing(false);
+    }
+  };
+
   const handleAddItem = async (item: Omit<CalendarItem, "id">) => {
     const { data, error } = await supabase
       .from("calendar_items")
@@ -241,14 +267,40 @@ export default function CalendarPage() {
           <button
             onClick={exportICS}
             disabled={filtered.length === 0}
-            title="Exportar como iCal (.ics) para Google Calendar o Apple Calendar"
+            title="Exportar este mes como iCal (.ics) para Google Calendar o Apple Calendar"
             className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Download className="h-3.5 w-3.5" />
             .ics
           </button>
+          <button
+            onClick={handleGoogleSync}
+            disabled={googleSyncing}
+            title="Sincronizar posts programados con Google Calendar (próximos 3 meses)"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", googleSyncing && "animate-spin")} />
+            {googleSyncing ? "Sincronizando…" : "Google Cal"}
+          </button>
         </div>
       </div>
+
+      {/* Resultado sync Google Calendar */}
+      {googleResult && (
+        <div className={cn(
+          "flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm mb-4",
+          googleResult.ok
+            ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-400"
+            : "border-amber-500/30 bg-amber-500/5 text-amber-400"
+        )}>
+          {googleResult.ok
+            ? <CheckCircle2 className="h-4 w-4 shrink-0" />
+            : <AlertCircle className="h-4 w-4 shrink-0" />
+          }
+          <span className="flex-1">{googleResult.message}</span>
+          <button onClick={() => setGoogleResult(null)} className="text-xs opacity-60 hover:opacity-100">✕</button>
+        </div>
+      )}
 
       <div className="mb-6">
         <PlatformFilter
