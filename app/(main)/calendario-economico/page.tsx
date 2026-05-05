@@ -159,15 +159,28 @@ const MONTH_NAMES = ["enero","febrero","marzo","abril","mayo","junio","julio","a
 export default function CalendarioEconomicoPage() {
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date(TODAY + "T00:00:00")));
   const [countryFilter, setCountryFilter] = useState<EventCountry | "ALL">("ALL");
-  const [impFilter, setImpFilter] = useState<EventImportance | "ALL">("high");
-  const [viewMode, setViewMode] = useState<"week" | "month">("week");
+  const [impFilter, setImpFilter] = useState<EventImportance | "ALL">("ALL");
+  const [viewMode, setViewMode] = useState<"week" | "month">("month");
 
-  const goToday = () => setWeekStart(getWeekStart(new Date(TODAY + "T00:00:00")));
+  // En modo semana weekStart = lunes de esa semana
+  // En modo mes   weekStart = 1° del mes (evita bug de getWeekStart que retrocede al mes anterior)
+  const goToday = () => {
+    const d = new Date(TODAY + "T00:00:00");
+    setWeekStart(viewMode === "week" ? getWeekStart(d) : new Date(d.getFullYear(), d.getMonth(), 1));
+  };
+
   const shiftWeek = (d: number) => {
     const next = new Date(weekStart);
     next.setDate(next.getDate() + d * 7);
     setWeekStart(next);
   };
+
+  const shiftMonth = (d: number) => {
+    // Siempre va al 1° del mes destino — no llama getWeekStart para evitar cruce de mes
+    setWeekStart(new Date(weekStart.getFullYear(), weekStart.getMonth() + d, 1));
+  };
+
+  const shift = viewMode === "week" ? shiftWeek : shiftMonth;
 
   // All events for display period
   const periodEvents = useMemo(() => {
@@ -175,6 +188,7 @@ export default function CalendarioEconomicoPage() {
     if (viewMode === "week") {
       evts = getEventsForWeek(weekStart);
     } else {
+      // Usar año+mes de weekStart directamente (siempre es 1° del mes en modo mes)
       const prefix = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, "0")}`;
       evts = ECONOMIC_CALENDAR.filter((e) => e.date.startsWith(prefix));
     }
@@ -200,13 +214,6 @@ export default function CalendarioEconomicoPage() {
   }, [weekStart, viewMode]);
 
   const shiftLabel = viewMode === "week" ? "semana" : "mes";
-  const shiftMonth = (d: number) => {
-    const next = new Date(weekStart);
-    next.setMonth(next.getMonth() + d);
-    next.setDate(1);
-    setWeekStart(getWeekStart(next));
-  };
-  const shift = viewMode === "week" ? shiftWeek : shiftMonth;
 
   const highCount = periodEvents.filter((e) => e.importance === "high").length;
 
@@ -232,8 +239,16 @@ export default function CalendarioEconomicoPage() {
           </button>
           {/* Week/Month toggle */}
           <div className="flex rounded-md border overflow-hidden">
-            <button onClick={() => setViewMode("week")} className={cn("px-3 py-1 text-xs transition-colors", viewMode === "week" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>Semana</button>
-            <button onClick={() => setViewMode("month")} className={cn("px-3 py-1 text-xs transition-colors", viewMode === "month" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>Mes</button>
+            <button onClick={() => {
+              // Al pasar a semana: go to week containing weekStart
+              setViewMode("week");
+              setWeekStart(getWeekStart(new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate())));
+            }} className={cn("px-3 py-1 text-xs transition-colors", viewMode === "week" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>Semana</button>
+            <button onClick={() => {
+              // Al pasar a mes: go to 1° of current month
+              setViewMode("month");
+              setWeekStart(new Date(weekStart.getFullYear(), weekStart.getMonth(), 1));
+            }} className={cn("px-3 py-1 text-xs transition-colors", viewMode === "month" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>Mes</button>
           </div>
         </div>
         {highCount > 0 && (

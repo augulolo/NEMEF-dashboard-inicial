@@ -40,7 +40,7 @@ export interface FullMarketData {
 }
 
 // ── Symbol lists ──────────────────────────────────────────────────────────────
-const INDICES_AMERICAS = [
+const INDICES_AMERICAS: { symbol: string; name: string }[] = [
   { symbol: "^GSPC",   name: "S&P 500" },
   { symbol: "^DJI",    name: "Dow Jones" },
   { symbol: "^IXIC",   name: "Nasdaq" },
@@ -52,7 +52,7 @@ const INDICES_AMERICAS = [
   { symbol: "^MXX",    name: "IPC México" },
 ];
 
-const INDICES_EUROPE = [
+const INDICES_EUROPE: { symbol: string; name: string }[] = [
   { symbol: "^FTSE",     name: "FTSE 100" },
   { symbol: "^GDAXI",    name: "DAX" },
   { symbol: "^FCHI",     name: "CAC 40" },
@@ -62,19 +62,19 @@ const INDICES_EUROPE = [
   { symbol: "^SSMI",     name: "SMI" },
 ];
 
-const INDICES_ASIA = [
+const INDICES_ASIA: { symbol: string; name: string }[] = [
   { symbol: "^N225",     name: "Nikkei 225" },
   { symbol: "^HSI",      name: "Hang Seng" },
-  { symbol: "000001.SS", name: "Shanghai" },
+  { symbol: "000001.SS", name: "Shanghai Comp." },
   { symbol: "^AXJO",     name: "ASX 200" },
   { symbol: "^KS11",     name: "KOSPI" },
 ];
 
-const COMMODITIES = [
+const COMMODITIES: { symbol: string; name: string }[] = [
   { symbol: "GC=F", name: "Oro" },
   { symbol: "SI=F", name: "Plata" },
   { symbol: "CL=F", name: "Petróleo WTI" },
-  { symbol: "BZ=F", name: "Brent" },
+  { symbol: "BZ=F", name: "Petróleo Brent" },
   { symbol: "NG=F", name: "Gas Natural" },
   { symbol: "HG=F", name: "Cobre" },
   { symbol: "ZC=F", name: "Maíz" },
@@ -83,18 +83,18 @@ const COMMODITIES = [
   { symbol: "PL=F", name: "Platino" },
 ];
 
-const FUTURES = [
+const FUTURES: { symbol: string; name: string }[] = [
   { symbol: "ES=F",  name: "S&P 500 Futuro" },
   { symbol: "NQ=F",  name: "Nasdaq 100 Futuro" },
-  { symbol: "YM=F",  name: "Dow Futuro" },
+  { symbol: "YM=F",  name: "Dow Jones Futuro" },
   { symbol: "RTY=F", name: "Russell 2000 Futuro" },
-  { symbol: "ZB=F",  name: "T-Bond 30Y" },
-  { symbol: "ZN=F",  name: "T-Note 10Y" },
+  { symbol: "ZB=F",  name: "T-Bond 30Y EEUU" },
+  { symbol: "ZN=F",  name: "T-Note 10Y EEUU" },
   { symbol: "6E=F",  name: "Euro Futuro" },
   { symbol: "6J=F",  name: "Yen Futuro" },
 ];
 
-const FOREX = [
+const FOREX: { symbol: string; name: string }[] = [
   { symbol: "EURUSD=X",  name: "EUR/USD" },
   { symbol: "GBPUSD=X",  name: "GBP/USD" },
   { symbol: "JPY=X",     name: "USD/JPY" },
@@ -107,66 +107,67 @@ const FOREX = [
 
 // ── In-memory cache ───────────────────────────────────────────────────────────
 let _cache: { data: FullMarketData; ts: number } | null = null;
-const CACHE_MS = 120_000; // 2 minutos
+const CACHE_MS = 120_000; // 2 min
 
-// ── Yahoo Finance ─────────────────────────────────────────────────────────────
-async function fetchYahooQuotes(
-  items: { symbol: string; name: string }[]
-): Promise<MarketQuote[]> {
-  const syms = items.map((i) => i.symbol).join(",");
+// ── Yahoo Finance v8/chart — ONE request per symbol, all in parallel ──────────
+type YahooMeta = {
+  shortName?: string;
+  longName?: string;
+  regularMarketPrice?: number;
+  chartPreviousClose?: number;
+  currency?: string;
+  marketState?: string;
+};
+
+async function fetchOneYahoo(symbol: string, fallbackName: string): Promise<MarketQuote> {
   try {
-    const res = await fetch(
-      `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(syms)}`,
-      {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-          "Accept": "application/json",
-        },
-        signal: AbortSignal.timeout(8000),
-      }
-    );
-    if (!res.ok) throw new Error(`Yahoo ${res.status}`);
-
-    const json = await res.json() as {
-      quoteResponse?: {
-        result?: {
-          symbol: string;
-          shortName?: string;
-          regularMarketPrice?: number;
-          regularMarketChange?: number;
-          regularMarketChangePercent?: number;
-          currency?: string;
-          marketState?: string;
-        }[];
-      };
-    };
-
-    const map = new Map((json.quoteResponse?.result ?? []).map((r) => [r.symbol, r]));
-
-    return items.map((item) => {
-      const r = map.get(item.symbol);
-      return {
-        symbol: item.symbol,
-        name: r?.shortName ?? item.name,
-        price: r?.regularMarketPrice ?? null,
-        change: r?.regularMarketChange ?? null,
-        changePct: r?.regularMarketChangePercent ?? null,
-        currency: r?.currency ?? "USD",
-        marketState: r?.marketState,
-      };
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+      signal: AbortSignal.timeout(8000),
     });
+
+    if (!res.ok) return { symbol, name: fallbackName, price: null, change: null, changePct: null, currency: "USD" };
+
+    const json = await res.json() as { chart?: { result?: [{ meta?: YahooMeta }]; error?: unknown } };
+    const meta = json.chart?.result?.[0]?.meta;
+    if (!meta) return { symbol, name: fallbackName, price: null, change: null, changePct: null, currency: "USD" };
+
+    const price    = meta.regularMarketPrice  ?? null;
+    const prevClose = meta.chartPreviousClose ?? null;
+    const change   = price !== null && prevClose !== null ? +(price - prevClose).toFixed(4) : null;
+    const changePct = change !== null && prevClose ? +((change / prevClose) * 100).toFixed(3) : null;
+
+    return {
+      symbol,
+      name: meta.shortName ?? meta.longName ?? fallbackName,
+      price,
+      change,
+      changePct,
+      currency: meta.currency ?? "USD",
+      marketState: meta.marketState,
+    };
   } catch {
-    return items.map((i) => ({ symbol: i.symbol, name: i.name, price: null, change: null, changePct: null, currency: "USD" }));
+    return { symbol, name: fallbackName, price: null, change: null, changePct: null, currency: "USD" };
   }
 }
 
+async function fetchYahooQuotes(items: { symbol: string; name: string }[]): Promise<MarketQuote[]> {
+  return Promise.all(items.map(({ symbol, name }) => fetchOneYahoo(symbol, name)));
+}
+
 // ── CoinGecko ────────────────────────────────────────────────────────────────
+const COINS: Record<string, string> = {
+  bitcoin: "Bitcoin", ethereum: "Ethereum", binancecoin: "BNB",
+  solana: "Solana", ripple: "XRP", cardano: "Cardano",
+  dogecoin: "Dogecoin", "matic-network": "Polygon",
+};
+
 async function fetchCrypto(): Promise<MarketQuote[]> {
-  const COINS: Record<string, string> = {
-    bitcoin: "Bitcoin", ethereum: "Ethereum", binancecoin: "BNB",
-    solana: "Solana", ripple: "XRP", cardano: "Cardano",
-    dogecoin: "Dogecoin", polkadot: "Polkadot",
-  };
   try {
     const ids = Object.keys(COINS).join(",");
     const res = await fetch(
@@ -176,11 +177,11 @@ async function fetchCrypto(): Promise<MarketQuote[]> {
     if (!res.ok) return [];
     const data = await res.json() as Record<string, { usd: number; usd_24h_change: number }>;
     return Object.entries(data).map(([id, v]) => ({
-      symbol: id.toUpperCase(),
+      symbol: id === "matic-network" ? "MATIC" : id.toUpperCase(),
       name: COINS[id] ?? id,
       price: v.usd ?? null,
       change: null,
-      changePct: v.usd_24h_change ?? null,
+      changePct: v.usd_24h_change != null ? +v.usd_24h_change.toFixed(3) : null,
       currency: "USD",
     }));
   } catch { return []; }
@@ -197,17 +198,16 @@ async function fetchBluelytics() {
     return await res.json() as {
       oficial?: { value_buy: number; value_sell: number };
       blue?: { value_buy: number; value_sell: number };
-      blue_euro?: { value_buy: number; value_sell: number };
     };
   } catch { return null; }
 }
 
-// ── dolarapi.com — MEP y CCL ──────────────────────────────────────────────────
+// ── dolarapi.com — MEP y CCL ─────────────────────────────────────────────────
 async function fetchDolarApi() {
   try {
     const [mepRes, cclRes] = await Promise.all([
-      fetch("https://dolarapi.com/v1/dolares/bolsa",             { signal: AbortSignal.timeout(5000) }),
-      fetch("https://dolarapi.com/v1/dolares/contadoconliqui",   { signal: AbortSignal.timeout(5000) }),
+      fetch("https://dolarapi.com/v1/dolares/bolsa",           { signal: AbortSignal.timeout(5000) }),
+      fetch("https://dolarapi.com/v1/dolares/contadoconliqui", { signal: AbortSignal.timeout(5000) }),
     ]);
     const mep = mepRes.ok ? await mepRes.json() as { compra?: number; venta?: number } : null;
     const ccl = cclRes.ok ? await cclRes.json() as { compra?: number; venta?: number } : null;
@@ -227,7 +227,7 @@ async function fetchBCRA() {
     const vars = json.results ?? [];
     return {
       inflacion: vars.find((v) => v.idVariable === 27)?.valor ?? null,
-      tasa: vars.find((v) => v.idVariable === 7)?.valor ?? null,
+      tasa:      vars.find((v) => v.idVariable === 7)?.valor  ?? null,
     };
   } catch { return { inflacion: null, tasa: null }; }
 }
@@ -266,7 +266,7 @@ export async function GET() {
       dolarBlue:    blue?.blue    ? { buy: blue.blue.value_buy,    sell: blue.blue.value_sell    } : null,
       dolarMep:     dolarApi.mep  ? { buy: dolarApi.mep.compra ?? 0, sell: dolarApi.mep.venta ?? 0 } : null,
       dolarCcl:     dolarApi.ccl  ? { buy: dolarApi.ccl.compra ?? 0, sell: dolarApi.ccl.venta ?? 0 } : null,
-      inflacionMensual: bcra.inflacion,
+      inflacionMensual:      bcra.inflacion,
       tasaPoliticaMonetaria: bcra.tasa,
     },
     updatedAt: new Date().toISOString(),
