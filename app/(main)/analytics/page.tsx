@@ -16,6 +16,7 @@ import { MyAccount } from "@/components/analytics/my-account";
 import { BenchmarkCard } from "@/components/analytics/benchmark-card";
 import { CompetitorAvatar } from "@/components/competitors/competitor-avatar";
 import { GrowthChart, type Series } from "@/components/analytics/growth-chart";
+import { loadPillars, getPillarDistribution } from "@/lib/pillars";
 
 const STATUS_COLORS: Record<string, string> = {
   published: "bg-emerald-500",
@@ -353,6 +354,11 @@ export default function AnalyticsPage() {
     count: posts.filter((p) => p.type === t).length,
     color: TYPE_COLORS[t],
   }));
+
+  // Distribución por pilar de contenido
+  const pillars = loadPillars();
+  const pillarDist = getPillarDistribution(posts.map((p) => p.id));
+  const totalWithPillar = Object.values(pillarDist).reduce((a, b) => a + b, 0);
 
   const postsByStatus = POST_STATUSES.map((s) => ({
     key: s, label: STATUS_LABELS[s],
@@ -845,6 +851,50 @@ export default function AnalyticsPage() {
           </Card>
         )}
       </div>
+
+      {/* Distribución por pilar de contenido */}
+      {totalWithPillar > 0 && (
+        <Card className="mt-4">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+              <span>Mix de pilares de contenido</span>
+              <span className="text-[10px] normal-case font-normal border rounded px-1.5 py-0.5">{totalWithPillar} posts etiquetados</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {pillars
+                .map((p) => ({ pillar: p, count: pillarDist[p.id] ?? 0 }))
+                .filter((x) => x.count > 0)
+                .sort((a, b) => b.count - a.count)
+                .map(({ pillar, count }) => {
+                  const pct = Math.round((count / totalWithPillar) * 100);
+                  return (
+                    <div key={pillar.id} className={cn("rounded-lg border p-3", pillar.color, pillar.borderColor)}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-base leading-none">{pillar.emoji}</span>
+                        <span className={cn("text-xs font-semibold", pillar.textColor)}>{pillar.name}</span>
+                        <span className="ml-auto text-xs font-bold tabular-nums text-foreground">{pct}%</span>
+                      </div>
+                      <div className="h-1.5 bg-black/10 rounded-full overflow-hidden">
+                        <div
+                          className={cn("h-full rounded-full transition-all duration-700", pillar.textColor.replace("text-", "bg-"))}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1.5">{count} post{count !== 1 ? "s" : ""}</p>
+                    </div>
+                  );
+                })}
+            </div>
+            {totalWithPillar < posts.length && (
+              <p className="text-[11px] text-muted-foreground mt-3">
+                {posts.length - totalWithPillar} posts sin pilar asignado — etiquetálos desde el gestor de Instagram.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </>
   );
 }

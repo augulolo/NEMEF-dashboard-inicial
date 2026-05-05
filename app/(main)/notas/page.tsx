@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Clock, Send, Pin, Download } from "lucide-react";
+import { Plus, Trash2, Clock, Send, Pin, Download, Cloud, HardDrive } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import { supabase } from "@/lib/supabase";
@@ -13,21 +13,15 @@ type Note = {
   content: string;
   createdAt: string;
   updatedAt: string;
-  pinned?: boolean;
+  pinned: boolean;
 };
 
-const STORAGE_KEY = "nemef_notes";
+// ── localStorage helpers (fallback + migración) ───────────────────────────────
+const LS_KEY = "nemef_notes";
+const LS_MIGRATED_KEY = "nemef_notes_migrated_v1";
 
-function loadNotes(): Note[] {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
-  } catch {
-    return [];
-  }
-}
-
-function saveNotes(notes: Note[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+function lsLoad(): Note[] {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) ?? "[]"); } catch { return []; }
 }
 
 function timeAgo(iso: string): string {
@@ -40,98 +34,182 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString("es-AR", { day: "numeric", month: "short" });
 }
 
+function sortNotes(notes: Note[]): Note[] {
+  return [...notes].sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    return b.updatedAt.localeCompare(a.updatedAt);
+  });
+}
+
+// ── Supabase helpers ──────────────────────────────────────────────────────────
+async function dbLoad(): Promise<Note[] | null> {
+  const { data, error } = await supabase
+    .from("notes")
+    .select("id, content, pinned, created_at, updated_at")
+    .order("pinned", { ascending: false })
+    .order("updated_at", { ascending: false });
+  if (error) return null;
+  return (data ?? []).map((r) => ({
+    id: r.id as string,
+    content: r.content as string,
+    pinned: r.pinned as boolean,
+    createdAt: r.created_at as string,
+    updatedAt: r.updated_at as string,
+  }));
+}
+
+async function dbInsert(note: Note): Promise<boolean> {
+  const { error } = await supabase.from("notes").insert({
+    id: note.id,
+    content: note.content,
+    pinned: note.pinned,
+    created_at: note.createdAt,
+    updated_at: note.updatedAt,
+  });
+  return !error;
+}
+
+async function dbUpdate(id: string, patch: Partial<{ content: string; pinned: boolean }>): Promise<boolean> {
+  const { error } = await supabase.from("notes").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id);
+  return !error;
+}
+
+async function dbDelete(id: string): Promise<boolean> {
+  const { error } = await supabase.from("notes").delete().eq("id", id);
+  return !error;
+}
+
 export default function NotasPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [content, setContent] = useState("");
+  const [useDB, setUseDB] = useState(false); // true when Supabase is reachable
+  const [saving, setSaving] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
+  // ── Carga inicial ──────────────────────────────────────────────────────────
   useEffect(() => {
-    const loaded = loadNotes().sort((a, b) => {
-      if (a.pinned === b.pinned) return b.updatedAt.localeCompare(a.updatedAt);
-      return a.pinned ? -1 : 1;
-    });
-    setNotes(loaded);
-    if (loaded.length > 0) {
-      setActiveId(loaded[0].id);
-      setContent(loaded[0].content);
-    }
+    (async () => {
+      const dbNotes = await dbLoad();
+
+      if (dbNotes !== null) {
+        // Supabase accesible
+        setUseDB(true);
+
+        // ── Migración one-shot desde localStorage ──────────────────────────
+        const alreadyMigrated = localStorage.getItem(LS_MIGRATED_KEY);
+        if (!alreadyMigrated) {
+          const lsNotes = lsLoad();
+          if (lsNotes.length > 0 && dbNotes.length === 0) {
+            // Insertar todas en Supabase
+            await Promise.all(lsNotes.map(dbInsert));
+            localStorage.setItem(LS_MIGRATED_KEY, "1");
+            const migrated = await dbLoad();
+            const sorted = sortNotes(migrated ?? []);
+            setNotes(sorted);
+            if (sorted.length > 0) { setActiveId(sorted[0].id); setContent(sorted[0].content); }
+            toast(`${lsNotes.length} notas migradas a Supabase ✓`);
+            return;
+          }
+          localStorage.setItem(LS_MIGRATED_KEY, "1");
+        }
+
+        const sorted = sortNotes(dbNotes);
+        setNotes(sorted);
+        if (sorted.length > 0) { setActiveId(sorted[0].id); setContent(sorted[0].content); }
+      } else {
+        // Supabase no disponible — usar localStorage
+        setUseDB(false);
+        const lsNotes = sortNotes(lsLoad());
+        setNotes(lsNotes);
+        if (lsNotes.length > 0) { setActiveId(lsNotes[0].id); setContent(lsNotes[0].content); }
+      }
+    })();
   }, []);
 
   const activeNote = notes.find((n) => n.id === activeId);
 
-  const handleSelect = (note: Note) => {
-    // Auto-save current before switching
-    if (activeId && content !== activeNote?.content) {
-      const updated = notes.map((n) =>
-        n.id === activeId ? { ...n, content, updatedAt: new Date().toISOString() } : n
-      );
-      setNotes(updated);
-      saveNotes(updated);
+  // ── Persistencia ───────────────────────────────────────────────────────────
+  const persist = useCallback((updated: Note[]) => {
+    if (!useDB) {
+      localStorage.setItem(LS_KEY, JSON.stringify(updated));
     }
+    setNotes(sortNotes(updated));
+  }, [useDB]);
+
+  // ── Guardar contenido (debounced) ──────────────────────────────────────────
+  const scheduleContentSave = useCallback((id: string, text: string) => {
+    clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      setSaving(true);
+      if (useDB) {
+        await dbUpdate(id, { content: text });
+      } else {
+        // localStorage update is already done inline
+      }
+      setSaving(false);
+    }, 800);
+  }, [useDB]);
+
+  const handleChange = (val: string) => {
+    setContent(val);
+    if (!activeId) return;
+    const now = new Date().toISOString();
+    const updated = notes.map((n) =>
+      n.id === activeId ? { ...n, content: val, updatedAt: now } : n
+    );
+    persist(updated);
+    scheduleContentSave(activeId, val);
+  };
+
+  // ── Seleccionar nota ───────────────────────────────────────────────────────
+  const handleSelect = (note: Note) => {
     setActiveId(note.id);
     setContent(note.content);
     setTimeout(() => textareaRef.current?.focus(), 50);
   };
 
-  const handleNew = () => {
-    // Save current first
-    if (activeId) {
-      const updated = notes.map((n) =>
-        n.id === activeId ? { ...n, content, updatedAt: new Date().toISOString() } : n
-      );
-      setNotes(updated);
-      saveNotes(updated);
-    }
+  // ── Nueva nota ─────────────────────────────────────────────────────────────
+  const handleNew = async () => {
     const now = new Date().toISOString();
-    const note: Note = { id: crypto.randomUUID(), content: "", createdAt: now, updatedAt: now };
-    const newNotes = [note, ...notes];
-    setNotes(newNotes);
-    saveNotes(newNotes);
+    const note: Note = { id: crypto.randomUUID(), content: "", createdAt: now, updatedAt: now, pinned: false };
+    if (useDB) {
+      const ok = await dbInsert(note);
+      if (!ok) { toast("Error al crear nota", "error"); return; }
+    }
+    persist([note, ...notes]);
     setActiveId(note.id);
     setContent("");
     setTimeout(() => textareaRef.current?.focus(), 50);
   };
 
-  const handleChange = (val: string) => {
-    setContent(val);
-    if (!activeId) return;
-    const updated = notes.map((n) =>
-      n.id === activeId ? { ...n, content: val, updatedAt: new Date().toISOString() } : n
-    );
-    setNotes(updated);
-    saveNotes(updated);
-  };
-
-  const handleDelete = (id: string) => {
+  // ── Eliminar nota ──────────────────────────────────────────────────────────
+  const handleDelete = async (id: string) => {
+    if (useDB) {
+      const ok = await dbDelete(id);
+      if (!ok) { toast("Error al eliminar nota", "error"); return; }
+    }
     const updated = notes.filter((n) => n.id !== id);
-    setNotes(updated);
-    saveNotes(updated);
+    persist(updated);
     if (id === activeId) {
-      if (updated.length > 0) {
-        setActiveId(updated[0].id);
-        setContent(updated[0].content);
-      } else {
-        setActiveId(null);
-        setContent("");
-      }
+      const next = updated[0] ?? null;
+      setActiveId(next?.id ?? null);
+      setContent(next?.content ?? "");
     }
     toast("Nota eliminada");
   };
 
-  const handlePin = (id: string) => {
-    const updated = notes.map((n) =>
-      n.id === id ? { ...n, pinned: !n.pinned } : n
-    );
-    // Re-sort: pinned first, then by updatedAt
-    updated.sort((a, b) => {
-      if (a.pinned === b.pinned) return b.updatedAt.localeCompare(a.updatedAt);
-      return a.pinned ? -1 : 1;
-    });
-    setNotes(updated);
-    saveNotes(updated);
+  // ── Anclar / desanclar ─────────────────────────────────────────────────────
+  const handlePin = async (id: string) => {
+    const note = notes.find((n) => n.id === id);
+    if (!note) return;
+    const newPinned = !note.pinned;
+    if (useDB) await dbUpdate(id, { pinned: newPinned });
+    persist(notes.map((n) => n.id === id ? { ...n, pinned: newPinned } : n));
   };
 
+  // ── Convertir a borrador ───────────────────────────────────────────────────
   const handleConvertToPost = async () => {
     if (!content.trim()) return;
     const { error } = await supabase.from("posts").insert({
@@ -144,16 +222,17 @@ export default function NotasPage() {
     else toast("Error al crear borrador", "error");
   };
 
+  // ── Exportar todas ─────────────────────────────────────────────────────────
   const handleExportAll = () => {
     if (notes.length === 0) return;
-    const content = notes
+    const exportContent = notes
       .map((n, i) => {
         const date = new Date(n.updatedAt).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
         const pin = n.pinned ? " 📌" : "";
         return `# Nota ${i + 1}${pin}\n_${date}_\n\n${n.content}`;
       })
       .join("\n\n---\n\n");
-    const blob = new Blob([content], { type: "text/markdown;charset=utf-8;" });
+    const blob = new Blob([exportContent], { type: "text/markdown;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -175,6 +254,18 @@ export default function NotasPage() {
           description="Ideas, borradores y apuntes antes de convertirlos en posts."
         />
         <div className="flex items-center gap-2">
+          {/* Indicador de persistencia */}
+          <span className={cn(
+            "inline-flex items-center gap-1 text-[11px] border rounded-full px-2 py-0.5",
+            useDB
+              ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/5"
+              : "text-amber-400 border-amber-500/30 bg-amber-500/5"
+          )}>
+            {useDB
+              ? <><Cloud className="h-3 w-3" /> Supabase</>
+              : <><HardDrive className="h-3 w-3" /> Local</>
+            }
+          </span>
           {notes.length > 0 && (
             <button
               onClick={handleExportAll}
@@ -269,7 +360,10 @@ export default function NotasPage() {
                   {content.length} caracteres · {content.trim().split(/\s+/).filter(Boolean).length} palabras
                 </span>
                 <div className="flex items-center gap-3">
-                  {activeNote && (
+                  {saving && (
+                    <span className="text-[11px] text-muted-foreground animate-pulse">Guardando…</span>
+                  )}
+                  {!saving && activeNote && (
                     <span className="text-xs text-muted-foreground">
                       Guardado {timeAgo(activeNote.updatedAt)}
                     </span>

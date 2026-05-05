@@ -16,6 +16,7 @@ import { TYPE_LABELS, STATUS_LABELS, POST_TYPES, POST_STATUSES } from "@/lib/pos
 import { cn } from "@/lib/utils";
 import { RepurposeDialog } from "./repurpose-dialog";
 import { loadTags, saveTags } from "@/lib/tags";
+import { PillarSelector } from "./pillar-selector";
 
 const typeIcon = {
   photo: ImageIcon,
@@ -595,7 +596,8 @@ export function PostCard({
           )}
 
           {/* Footer */}
-          <div className="flex items-center justify-between pt-2 border-t gap-2">
+          <div className="flex items-center justify-between pt-2 border-t gap-2 flex-wrap">
+            <PillarSelector postId={post.id} />
             {post.scheduledDate ? (
               <div className={cn(
                 "flex items-center gap-1.5 text-xs shrink-0",
