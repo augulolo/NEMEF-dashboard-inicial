@@ -242,6 +242,29 @@ export default function IdeasPage() {
       {/* Input principal */}
       <Card className="mb-8">
         <CardContent className="p-5">
+          {/* Chips de temas financieros */}
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {[
+              "Dólar MEP", "Inflación ARG", "CEDEARs", "Plazo fijo vs CER",
+              "Bitcoin 2025", "MERVAL", "Cepo cambiario", "Tasa BCRA",
+              "Reservas internacionales", "Stablecoins", "Acciones locales",
+              "Brecha cambiaria", "Ahorro en dólares", "FCI renta fija",
+              "Bonos soberanos", "Criptomonedas Argentina", "Libertad financiera",
+              "Presupuesto personal", "Interés compuesto", "Jubilación privada",
+            ].map((t) => (
+              <button
+                key={t}
+                onClick={() => handleTopicSelect(t)}
+                className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                  topic === t
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "border-border text-muted-foreground hover:bg-accent hover:text-foreground"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
           <div className="flex gap-3">
             <Input
               value={topic}

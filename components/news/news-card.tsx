@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { ExternalLink, Sparkles, Bookmark, BookmarkCheck } from "lucide-react";
+import { ExternalLink, Sparkles, Bookmark, BookmarkCheck, FileText, Check } from "lucide-react";
 import { TOPIC_LABELS, TOPIC_STYLES, type NewsItem } from "@/lib/news";
 import { CaptionDialog } from "./caption-dialog";
+import { supabase } from "@/lib/supabase";
+import { toast } from "@/lib/toast";
 
 function timeAgo(iso: string): string {
   if (!iso) return "";
@@ -42,11 +44,34 @@ export function NewsCard({
   onFavoriteChange?: (id: string, fav: boolean) => void;
 }) {
   const [showDialog, setShowDialog] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftSaved, setDraftSaved] = useState(false);
   const [isFav, setIsFav] = useState(() => {
     if (isFavProp !== undefined) return isFavProp;
     if (typeof window === "undefined") return false;
     return loadFavs().has(item.id);
   });
+
+  const handleSaveDraft = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (savingDraft || draftSaved) return;
+    setSavingDraft(true);
+    const caption = `📰 ${item.title}${item.summary ? `\n\n${item.summary}` : ""}\n\nFuente: ${item.source}`;
+    const { error } = await supabase.from("posts").insert({
+      caption,
+      type: "photo",
+      status: "draft",
+      scheduled_date: null,
+    });
+    setSavingDraft(false);
+    if (!error) {
+      setDraftSaved(true);
+      toast("Borrador creado en el gestor de Instagram ✓");
+      setTimeout(() => setDraftSaved(false), 4000);
+    } else {
+      toast("Error al guardar borrador", "error");
+    }
+  };
 
   const toggleFav = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -118,8 +143,8 @@ export function NewsCard({
         {item.summary && (
           <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{item.summary}</p>
         )}
-        {onCreatePost && (
-          <div className="pt-1">
+        <div className="pt-1 flex items-center gap-3 flex-wrap">
+          {onCreatePost && (
             <button
               onClick={() => setShowDialog(true)}
               className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors font-medium"
@@ -127,8 +152,26 @@ export function NewsCard({
               <Sparkles className="h-3.5 w-3.5" />
               Crear post con IA
             </button>
-          </div>
-        )}
+          )}
+          <button
+            onClick={handleSaveDraft}
+            disabled={savingDraft || draftSaved}
+            className={cn(
+              "inline-flex items-center gap-1.5 text-xs font-medium transition-colors",
+              draftSaved
+                ? "text-emerald-400"
+                : "text-muted-foreground hover:text-amber-400 disabled:opacity-50"
+            )}
+            title="Guardar como borrador de post con el título y resumen de la noticia"
+          >
+            {draftSaved
+              ? <><Check className="h-3.5 w-3.5" /> Borrador guardado</>
+              : savingDraft
+              ? <><FileText className="h-3.5 w-3.5 animate-pulse" /> Guardando…</>
+              : <><FileText className="h-3.5 w-3.5" /> Guardar borrador</>
+            }
+          </button>
+        </div>
       </CardContent>
     </Card>
     </>
