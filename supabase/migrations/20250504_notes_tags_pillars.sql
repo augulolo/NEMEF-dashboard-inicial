@@ -120,3 +120,18 @@ create table if not exists settings (
 
 alter table settings enable row level security;
 create policy "allow_all_settings" on settings for all using (true) with check (true);
+
+-- ── Newsletters guardados ──────────────────────────────────────────────────────
+create table if not exists saved_newsletters (
+  id          uuid primary key default gen_random_uuid(),
+  subject     text not null default '',
+  title       text not null,
+  subtitle    text not null default '',
+  topic       text not null default '',
+  data        jsonb not null,
+  html_body   text,
+  created_at  timestamptz not null default now()
+);
+
+alter table saved_newsletters enable row level security;
+create policy "allow_all_saved_newsletters" on saved_newsletters for all using (true) with check (true);

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, Calendar, Instagram, Newspaper, Target, LayoutDashboard, LogOut, Sun, Moon, Lightbulb, StickyNote, Zap, FileText, BookOpen, MonitorPlay, Settings, Mail, Search } from "lucide-react";
+import { BarChart3, Calendar, Instagram, Newspaper, Target, LayoutDashboard, LogOut, Sun, Moon, Lightbulb, StickyNote, Zap, FileText, BookOpen, MonitorPlay, Settings, Mail, Search, TrendingUp, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
 import { createClient } from "@/lib/supabase";
@@ -17,6 +17,8 @@ const nav = [
   { href: "/calendar", label: "Calendario", icon: Calendar },
   { href: "/competitors", label: "Creadores", icon: Target },
   { href: "/news", label: "Noticias", icon: Newspaper },
+  { href: "/mercado", label: "Mercado Global", icon: TrendingUp },
+  { href: "/calendario-economico", label: "Calendario Económico", icon: CalendarDays },
   { href: "/ideas", label: "Ideas con IA", icon: Lightbulb },
   { href: "/notas", label: "Notas rápidas", icon: StickyNote },
   { href: "/hooks", label: "Hooks y CTAs", icon: Zap },

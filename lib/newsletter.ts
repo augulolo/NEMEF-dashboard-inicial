@@ -39,6 +39,13 @@ export interface Newsletter {
   generatedAt: string;
 }
 
+// ── Logo ──────────────────────────────────────────────────────────────────────
+// SVG logo embebido como data URI (compatible con la mayoría de clientes de email)
+const LOGO_B64 =
+  "PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCA2NCA2NCcgZmlsbD0nbm9uZSc+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSdnJyB4MT0nMCcgeTE9JzAnIHgyPScxJyB5Mj0nMSc+PHN0b3Agb2Zmc2V0PScwJyBzdG9wLWNvbG9yPScjM0I4MkY2Jy8+PHN0b3Agb2Zmc2V0PScxJyBzdG9wLWNvbG9yPScjMDZCNkQ0Jy8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHBhdGggZD0nTTEyIDQ0IEEyMiAyMiAwIDEgMSA1MiAzMicgc3Ryb2tlPSd1cmwoI2cpJyBzdHJva2Utd2lkdGg9JzYnIHN0cm9rZS1saW5lY2FwPSdyb3VuZCcgZmlsbD0nbm9uZScvPjxwYXRoIGQ9J00zNiAxMCBMNTggNiBMNTQgMjggWicgZmlsbD0ndXJsKCNnKScvPjxjaXJjbGUgY3g9JzMyJyBjeT0nMzInIHI9JzMnIGZpbGw9J3VybCgjZyknLz48L3N2Zz4=";
+
+const LOGO_SRC = `data:image/svg+xml;base64,${LOGO_B64}`;
+
 // ── HTML email builder ────────────────────────────────────────────────────────
 // mode "body" = solo el <table> raíz (para pegar en Mailchimp)
 // mode "full" = documento HTML completo (para descargar)
@@ -69,7 +76,7 @@ export function buildEmailHTML(n: Newsletter, mode: "full" | "body" = "full"): s
   const sectionsHTML = n.sections.map((s) => `
     <tr><td style="padding:0 0 32px 0;">
       <h2 style="font-size:19px;font-weight:800;color:${TEXT};margin:0 0 14px;padding-bottom:10px;border-bottom:2px solid ${PRIMARY};">${s.heading}</h2>
-      <p style="font-size:15px;line-height:1.75;color:${TEXT};margin:0${s.dataPoints?.length ? " 0 20px" : ""};">${s.body.replace(/\n\n/g, "</p><p style=\"font-size:15px;line-height:1.75;color:#1a1a2e;margin:12px 0 0;\">").replace(/\n/g, "<br>")}</p>
+      <p style="font-size:15px;line-height:1.75;color:${TEXT};margin:0${s.dataPoints?.length ? " 0 20px" : ""};">${s.body.replace(/\n\n/g, `</p><p style="font-size:15px;line-height:1.75;color:#1a1a2e;margin:12px 0 0;">`).replace(/\n/g, "<br>")}</p>
       ${s.dataPoints && s.dataPoints.length > 0 ? `
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:4px;">
           <tr>${dataPtsHTML(s.dataPoints)}</tr>
@@ -122,9 +129,18 @@ export function buildEmailHTML(n: Newsletter, mode: "full" | "body" = "full"): s
         <td style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 55%,#0f3460 100%);padding:36px 40px;">
           <table width="100%" cellpadding="0" cellspacing="0" border="0">
             <tr>
-              <td>
-                <span style="font-size:24px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;font-family:Georgia,serif;">NEMEF</span>
-                <span style="display:block;font-size:10px;color:rgba(255,255,255,0.45);letter-spacing:0.2em;text-transform:uppercase;margin-top:3px;">No es Magia, Es Finanzas</span>
+              <td style="vertical-align:middle;">
+                <table cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="vertical-align:middle;padding-right:14px;">
+                      <img src="${LOGO_SRC}" width="44" height="44" alt="NEMEF logo" style="display:block;border:0;border-radius:8px;" />
+                    </td>
+                    <td style="vertical-align:middle;">
+                      <span style="font-size:24px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;font-family:Georgia,serif;display:block;line-height:1;">NEMEF</span>
+                      <span style="font-size:10px;color:rgba(255,255,255,0.45);letter-spacing:0.2em;text-transform:uppercase;display:block;margin-top:3px;">No es Magia, Es Finanzas</span>
+                    </td>
+                  </tr>
+                </table>
               </td>
               <td align="right" style="vertical-align:top;">
                 <span style="font-size:11px;color:rgba(255,255,255,0.4);white-space:nowrap;">${dateStr}</span>
@@ -171,6 +187,12 @@ export function buildEmailHTML(n: Newsletter, mode: "full" | "body" = "full"): s
               </table>
             </td></tr>
 
+            <!-- SIGN-OFF -->
+            <tr><td style="padding:0 0 32px;border-top:1px solid ${BORDER};padding-top:28px;">
+              <p style="font-size:15px;color:${TEXT};line-height:1.75;margin:0 0 6px;">Saludos y hasta el próximo lunes con un nuevo análisis semanal.</p>
+              <p style="font-size:14px;color:${MUTED};line-height:1.7;margin:0;font-style:italic;">Coyuntura global, economía, finanzas y educación financiera — con el objetivo de, cada día, ser un poco menos ignorantes.</p>
+            </td></tr>
+
             <!-- CTA -->
             <tr><td style="padding:0 0 36px;text-align:center;">
               <a href="#" style="display:inline-block;background:${PRIMARY};color:#ffffff;font-size:14px;font-weight:700;padding:15px 36px;border-radius:8px;text-decoration:none;letter-spacing:0.03em;">${n.cta}</a>
@@ -191,9 +213,18 @@ export function buildEmailHTML(n: Newsletter, mode: "full" | "body" = "full"): s
 
       <!-- FOOTER -->
       <tr>
-        <td style="background:#1a1a2e;padding:24px 40px;text-align:center;">
-          <p style="font-size:13px;font-weight:700;color:#ffffff;margin:0 0 5px;letter-spacing:0.02em;">NEMEF — No es Magia, Es Finanzas</p>
-          <p style="font-size:11px;color:rgba(255,255,255,0.35);margin:0;">Generado el ${dateStr} · Contenido de carácter informativo, no constituye asesoría financiera.</p>
+        <td style="background:#1a1a2e;padding:24px 40px;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="vertical-align:middle;">
+                <img src="${LOGO_SRC}" width="28" height="28" alt="NEMEF" style="display:inline-block;border:0;vertical-align:middle;margin-right:10px;border-radius:5px;" />
+                <span style="font-size:13px;font-weight:700;color:#ffffff;vertical-align:middle;">NEMEF — No es Magia, Es Finanzas</span>
+              </td>
+            </tr>
+            <tr><td style="padding-top:6px;">
+              <p style="font-size:11px;color:rgba(255,255,255,0.35);margin:0;">Generado el ${dateStr} · Contenido de carácter informativo, no constituye asesoría financiera.</p>
+            </td></tr>
+          </table>
         </td>
       </tr>
 
