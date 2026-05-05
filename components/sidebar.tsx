@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, Calendar, Instagram, Newspaper, Target, LayoutDashboard, LogOut, Sun, Moon, Lightbulb, StickyNote, Zap, FileText, BookOpen, Search, MonitorPlay, Settings } from "lucide-react";
+import { BarChart3, Calendar, Instagram, Newspaper, Target, LayoutDashboard, LogOut, Sun, Moon, Lightbulb, StickyNote, Zap, FileText, BookOpen, MonitorPlay, Settings, Mail, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
 import { createClient } from "@/lib/supabase";
@@ -21,6 +21,7 @@ const nav = [
   { href: "/notas", label: "Notas rápidas", icon: StickyNote },
   { href: "/hooks", label: "Hooks y CTAs", icon: Zap },
   { href: "/reports", label: "Reportes", icon: FileText },
+  { href: "/newsletter", label: "Newsletter", icon: Mail },
   { href: "/projects", label: "Lab. de Proyectos", icon: BookOpen },
   { href: "/teleprompter", label: "Teleprompter", icon: MonitorPlay },
   { href: "/settings", label: "Configuración", icon: Settings },
