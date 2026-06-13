@@ -11,6 +11,7 @@ import { OwnAccountWidget } from "@/components/home/own-account-widget";
 import { MarketTicker } from "@/components/home/market-ticker";
 import { WeeklyBrief } from "@/components/home/weekly-brief";
 import { CompetitorAvatar } from "@/components/competitors/competitor-avatar";
+import { GenerateButton } from "@/components/home/generate-button";
 
 function serverGrowthPct(history: number[]): number {
   if (!history || history.length < 2) return 0;
@@ -149,13 +150,16 @@ export default async function Home() {
   return (
     <>
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">{greeting} 👋</h1>
-        <p className="text-muted-foreground mt-1">
-          {new Date(today + "T12:00:00").toLocaleDateString("es-AR", {
-            weekday: "long", day: "numeric", month: "long",
-          })}
-        </p>
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{greeting} 👋</h1>
+          <p className="text-muted-foreground mt-1">
+            {new Date(today + "T12:00:00").toLocaleDateString("es-AR", {
+              weekday: "long", day: "numeric", month: "long",
+            })}
+          </p>
+        </div>
+        <GenerateButton />
       </div>
 
       {/* Alerta de posts vencidos */}
